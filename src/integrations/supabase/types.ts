@@ -197,30 +197,45 @@ export type Database = {
       }
       notifications: {
         Row: {
+          canal_envoi: string | null
           created_at: string
           date_envoi: string
+          date_reception: string | null
+          dernier_erreur: string | null
           id: string
           locataire_id: string | null
           message: string
+          recu_par: string | null
           statut: string
+          tentatives_envoi: number | null
           type: string
         }
         Insert: {
+          canal_envoi?: string | null
           created_at?: string
           date_envoi?: string
+          date_reception?: string | null
+          dernier_erreur?: string | null
           id?: string
           locataire_id?: string | null
           message: string
+          recu_par?: string | null
           statut?: string
+          tentatives_envoi?: number | null
           type: string
         }
         Update: {
+          canal_envoi?: string | null
           created_at?: string
           date_envoi?: string
+          date_reception?: string | null
+          dernier_erreur?: string | null
           id?: string
           locataire_id?: string | null
           message?: string
+          recu_par?: string | null
           statut?: string
+          tentatives_envoi?: number | null
           type?: string
         }
         Relationships: [
