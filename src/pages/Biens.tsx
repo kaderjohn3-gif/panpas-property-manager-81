@@ -52,11 +52,13 @@ const Biens = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Biens Immobiliers</h1>
-          <p className="text-muted-foreground">Gérer votre portfolio de biens</p>
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Biens Immobiliers
+          </h1>
+          <p className="text-muted-foreground mt-1">Gérer votre portfolio de biens</p>
         </div>
         <AddBienDialog />
       </div>
@@ -67,36 +69,38 @@ const Biens = () => {
           placeholder="Rechercher par nom, adresse ou propriétaire..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
+          className="pl-9 h-11"
         />
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12">Chargement...</div>
+        <div className="text-center py-12 text-muted-foreground">Chargement...</div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredBiens?.map((bien) => (
-            <Card key={bien.id} className="hover:shadow-lg transition-shadow">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredBiens?.map((bien, index) => (
+            <Card key={bien.id} className="hover-lift group" style={{ animationDelay: `${index * 50}ms` }}>
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{bien.nom}</CardTitle>
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Building2 className="h-5 w-5 text-primary" />
+                    </div>
+                    <CardTitle className="text-lg truncate">{bien.nom}</CardTitle>
                   </div>
                   {getStatutBadge(bien.statut)}
                 </div>
-                <Badge variant="outline" className="w-fit">
+                <Badge variant="outline" className="w-fit mt-2">
                   {getTypeLabel(bien.type)}
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="truncate">{bien.adresse}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span>{bien.proprietaires?.nom}</span>
+                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="truncate">{bien.proprietaires?.nom}</span>
                 </div>
                 <div className="pt-3 border-t">
                   <div className="flex items-center justify-between">

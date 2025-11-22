@@ -48,11 +48,13 @@ const Proprietaires = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Propriétaires</h1>
-          <p className="text-muted-foreground">Gérer les propriétaires de vos biens immobiliers</p>
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Propriétaires
+          </h1>
+          <p className="text-muted-foreground mt-1">Gérer les propriétaires de vos biens immobiliers</p>
         </div>
         <AddProprietaireDialog />
       </div>
@@ -63,24 +65,24 @@ const Proprietaires = () => {
           placeholder="Rechercher par nom, téléphone ou email..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
+          className="pl-9 h-11"
         />
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12">Chargement...</div>
+        <div className="text-center py-12 text-muted-foreground">Chargement...</div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredProprietaires?.map((proprietaire) => (
-            <Card key={proprietaire.id} className="hover:shadow-lg transition-shadow">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredProprietaires?.map((proprietaire, index) => (
+            <Card key={proprietaire.id} className="hover-lift group" style={{ animationDelay: `${index * 50}ms` }}>
               <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                <Avatar className="h-14 w-14 ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all">
+                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-secondary/20 text-primary font-bold text-lg">
                     {getInitials(proprietaire.nom)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{proprietaire.nom}</CardTitle>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg truncate">{proprietaire.nom}</CardTitle>
                   <p className="text-sm text-muted-foreground">
                     {proprietaire.biens?.length || 0} bien(s)
                   </p>
@@ -88,18 +90,18 @@ const Proprietaires = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{proprietaire.telephone}</span>
+                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="truncate">{proprietaire.telephone}</span>
                 </div>
                 {proprietaire.email && (
                   <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="truncate">{proprietaire.email}</span>
                   </div>
                 )}
                 {proprietaire.adresse && (
                   <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="truncate">{proprietaire.adresse}</span>
                   </div>
                 )}

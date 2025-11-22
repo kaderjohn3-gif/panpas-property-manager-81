@@ -38,11 +38,12 @@ export const Navigation = ({ mobile }: NavigationProps) => {
             key={item.to}
             to={item.to}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-              "text-muted-foreground hover:text-primary hover:bg-accent",
+              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+              "text-muted-foreground hover:text-primary hover:bg-accent/50",
+              "hover:scale-105 active:scale-95",
               mobile && "w-full"
             )}
-            activeClassName="text-primary bg-accent"
+            activeClassName="text-primary bg-accent shadow-sm font-semibold"
           >
             <Icon className="h-4 w-4" />
             <span>{item.label}</span>

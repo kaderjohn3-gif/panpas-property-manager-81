@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Download, DollarSign, Wrench, Zap, Droplet, Trash2 } from "lucide-react";
+import { Search, Download, DollarSign, Wrench, Zap, Droplet, Trash2, Receipt } from "lucide-react";
 import { AddDepenseDialog } from "@/components/depenses/AddDepenseDialog";
 import { DeleteDepenseDialog } from "@/components/depenses/DeleteDepenseDialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -62,28 +62,33 @@ const Depenses = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Dépenses</h1>
-          <p className="text-muted-foreground">Suivi et gestion des dépenses par bien</p>
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Dépenses
+          </h1>
+          <p className="text-muted-foreground mt-1">Suivi et gestion des dépenses par bien</p>
         </div>
         <AddDepenseDialog />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard title="Total Dépenses" value={`${totalDepenses.toLocaleString()} FCFA`} icon={DollarSign} />
         <StatsCard title="Réparations" value={`${reparations.toLocaleString()} FCFA`} icon={Wrench} />
         <StatsCard title="Électricité" value={`${electricite.toLocaleString()} FCFA`} icon={Zap} />
         <StatsCard title="Autres" value={`${autres.toLocaleString()} FCFA`} icon={Droplet} />
       </div>
 
-      <Card>
+      <Card className="hover-lift">
         <CardHeader>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <CardTitle>Historique des dépenses</CardTitle>
-            <div className="flex gap-2 w-full md:w-auto">
-              <div className="relative flex-1 md:w-64">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              Historique des dépenses
+            </CardTitle>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Rechercher..."
@@ -92,7 +97,7 @@ const Depenses = () => {
                   className="pl-8"
                 />
               </div>
-              <Button variant="outline">
+              <Button variant="outline" className="whitespace-nowrap">
                 <Download className="mr-2 h-4 w-4" />
                 Exporter
               </Button>
@@ -101,7 +106,7 @@ const Depenses = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-12">Chargement...</div>
+            <div className="text-center py-12 text-muted-foreground">Chargement...</div>
           ) : (
             <div className="overflow-x-auto -mx-6">
               <div className="inline-block min-w-full align-middle px-6">
@@ -118,8 +123,10 @@ const Depenses = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredDepenses?.map((depense) => (
-                      <TableRow key={depense.id}>
-                        <TableCell className="whitespace-nowrap">{new Date(depense.date_depense).toLocaleDateString("fr-FR")}</TableCell>
+                      <TableRow key={depense.id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell className="whitespace-nowrap font-medium">
+                          {new Date(depense.date_depense).toLocaleDateString("fr-FR")}
+                        </TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{depense.biens?.nom}</TableCell>
                         <TableCell>
                           <Badge className={getCategorieColor(depense.categorie)}>
@@ -127,7 +134,7 @@ const Depenses = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="max-w-xs truncate">{depense.description}</TableCell>
-                        <TableCell className="text-right font-medium whitespace-nowrap">
+                        <TableCell className="text-right font-bold whitespace-nowrap">
                           {parseFloat(depense.montant.toString()).toLocaleString()} FCFA
                         </TableCell>
                         <TableCell className="text-right">
@@ -136,6 +143,7 @@ const Depenses = () => {
                             size="sm"
                             onClick={() => setDeletingDepense(depense)}
                             title="Supprimer"
+                            className="hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

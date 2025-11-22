@@ -23,8 +23,9 @@ export const StatsCard = ({
   className,
 }: StatsCardProps) => {
   return (
-    <Card className={cn("overflow-hidden transition-all hover:shadow-lg", className)}>
-      <CardContent className="p-6">
+    <Card className={cn("overflow-hidden hover-lift group relative", className)}>
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <CardContent className="p-6 relative z-10">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
@@ -45,7 +46,7 @@ export const StatsCard = ({
               <p className="text-xs text-muted-foreground">{description}</p>
             )}
           </div>
-          <div className="rounded-full bg-primary/10 p-3">
+          <div className="rounded-xl bg-primary/10 p-3 group-hover:scale-110 transition-transform duration-200">
             <Icon className="h-6 w-6 text-primary" />
           </div>
         </div>

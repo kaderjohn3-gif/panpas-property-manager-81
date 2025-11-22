@@ -44,45 +44,52 @@ const Locataires = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Locataires</h1>
-          <p className="text-muted-foreground">Gérer les locataires et leurs contrats</p>
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Locataires
+          </h1>
+          <p className="text-muted-foreground mt-1">Gérer les locataires et leurs contrats</p>
         </div>
         <AddContratDialog />
       </div>
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Rechercher..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
+        <Input 
+          placeholder="Rechercher..." 
+          value={searchQuery} 
+          onChange={(e) => setSearchQuery(e.target.value)} 
+          className="pl-9 h-11" 
+        />
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12">Chargement...</div>
+        <div className="text-center py-12 text-muted-foreground">Chargement...</div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredContrats?.map((contrat) => (
-            <Card key={contrat.id}>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredContrats?.map((contrat, index) => (
+            <Card key={contrat.id} className="hover-lift group" style={{ animationDelay: `${index * 50}ms` }}>
               <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                <Avatar className="h-14 w-14 ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all">
+                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-secondary/20 text-primary font-bold text-lg">
                     {getInitials(contrat.locataires?.nom || "")}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{contrat.locataires?.nom}</CardTitle>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg truncate">{contrat.locataires?.nom}</CardTitle>
                   <Badge variant="secondary" className="mt-1">Actif</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{contrat.locataires?.telephone}</span>
+                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="truncate">{contrat.locataires?.telephone}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span>{contrat.biens?.nom}</span>
+                  <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="truncate">{contrat.biens?.nom}</span>
                 </div>
                 <div className="pt-3 border-t space-y-3">
                   <div className="flex justify-between text-sm">
@@ -127,8 +134,9 @@ const Locataires = () => {
                         setSelectedContrat(contrat);
                         setDeleteContratOpen(true);
                       }}
+                      className="hover:bg-destructive/10 hover:text-destructive"
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
