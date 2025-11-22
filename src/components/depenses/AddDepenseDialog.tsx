@@ -71,16 +71,16 @@ export const AddDepenseDialog = () => {
           Ajouter une dépense
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nouvelle Dépense</DialogTitle>
           <DialogDescription>Enregistrer une nouvelle dépense pour un bien</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="bien">Bien concerné *</Label>
             <Select value={bienId} onValueChange={setBienId}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Sélectionner un bien" />
               </SelectTrigger>
               <SelectContent>
@@ -95,7 +95,7 @@ export const AddDepenseDialog = () => {
           <div className="space-y-2">
             <Label htmlFor="categorie">Catégorie *</Label>
             <Select value={categorie} onValueChange={(v: any) => setCategorie(v)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -126,7 +126,7 @@ export const AddDepenseDialog = () => {
             <Label htmlFor="date">Date de la dépense *</Label>
             <Input id="date" type="date" value={dateDepense} onChange={(e) => setDateDepense(e.target.value)} required />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>

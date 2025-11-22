@@ -118,7 +118,7 @@ export const AddContratDialog = () => {
           Nouveau contrat
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nouveau Contrat - Étape {step}/2</DialogTitle>
           <DialogDescription>
@@ -127,10 +127,10 @@ export const AddContratDialog = () => {
         </DialogHeader>
 
         {step === 1 ? (
-          <div className="space-y-4">
+          <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="nom">Nom complet *</Label>
-              <Input id="nom" value={nom} onChange={(e) => setNom(e.target.value)} required />
+              <Input id="nom" value={nom} onChange={(e) => setNom(e.target.value)} required className="w-full" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="telephone">Téléphone *</Label>
@@ -150,11 +150,11 @@ export const AddContratDialog = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="bien">Bien *</Label>
               <Select value={bienId} onValueChange={setBienId}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Sélectionner un bien" />
                 </SelectTrigger>
                 <SelectContent>

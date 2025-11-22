@@ -5,50 +5,49 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
-interface EditProprietaireDialogProps {
-  proprietaire: any;
+interface EditLocataireDialogProps {
+  locataire: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export const EditProprietaireDialog = ({ proprietaire, open, onOpenChange }: EditProprietaireDialogProps) => {
+export const EditLocataireDialog = ({ locataire, open, onOpenChange }: EditLocataireDialogProps) => {
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [email, setEmail] = useState("");
   const [adresse, setAdresse] = useState("");
-  const [notes, setNotes] = useState("");
+  const [pieceIdentite, setPieceIdentite] = useState("");
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (proprietaire) {
-      setNom(proprietaire.nom || "");
-      setTelephone(proprietaire.telephone || "");
-      setEmail(proprietaire.email || "");
-      setAdresse(proprietaire.adresse || "");
-      setNotes(proprietaire.notes || "");
+    if (locataire) {
+      setNom(locataire.nom || "");
+      setTelephone(locataire.telephone || "");
+      setEmail(locataire.email || "");
+      setAdresse(locataire.adresse || "");
+      setPieceIdentite(locataire.piece_identite || "");
     }
-  }, [proprietaire]);
+  }, [locataire]);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
-        .from("proprietaires")
+        .from("locataires")
         .update({
           nom,
           telephone,
           email: email || null,
           adresse: adresse || null,
-          notes: notes || null,
+          piece_identite: pieceIdentite || null,
         })
-        .eq("id", proprietaire.id);
+        .eq("id", locataire.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["proprietaires"] });
-      toast.success("Propriétaire modifié avec succès");
+      queryClient.invalidateQueries({ queryKey: ["contrats"] });
+      toast.success("Locataire modifié avec succès");
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -65,8 +64,8 @@ export const EditProprietaireDialog = ({ proprietaire, open, onOpenChange }: Edi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Modifier le Propriétaire</DialogTitle>
-          <DialogDescription>Mettre à jour les informations du propriétaire</DialogDescription>
+          <DialogTitle>Modifier le Locataire</DialogTitle>
+          <DialogDescription>Mettre à jour les informations du locataire</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
@@ -75,19 +74,19 @@ export const EditProprietaireDialog = ({ proprietaire, open, onOpenChange }: Edi
           </div>
           <div className="space-y-2">
             <Label htmlFor="telephone">Téléphone *</Label>
-            <Input id="telephone" value={telephone} onChange={(e) => setTelephone(e.target.value)} required />
+            <Input id="telephone" value={telephone} onChange={(e) => setTelephone(e.target.value)} required className="w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="adresse">Adresse</Label>
-            <Input id="adresse" value={adresse} onChange={(e) => setAdresse(e.target.value)} />
+            <Input id="adresse" value={adresse} onChange={(e) => setAdresse(e.target.value)} className="w-full" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Label htmlFor="piece">Pièce d'identité</Label>
+            <Input id="piece" value={pieceIdentite} onChange={(e) => setPieceIdentite(e.target.value)} className="w-full" />
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
