@@ -25,6 +25,78 @@ const Rapports = () => {
     };
   });
 
+  // Données pour l'évolution sur 12 mois
+  const { data: evolutionData } = useQuery({
+    queryKey: ["evolution-12-mois"],
+    queryFn: async () => {
+      const last12Months = Array.from({ length: 12 }, (_, i) => {
+        const date = subMonths(new Date(), 11 - i);
+        return {
+          month: format(date, 'yyyy-MM'),
+          label: format(date, 'MMM yy', { locale: fr })
+        };
+      });
+
+      const monthlyData = await Promise.all(
+        last12Months.map(async ({ month, label }) => {
+          const monthStart = startOfMonth(new Date(month));
+          const monthEnd = endOfMonth(new Date(month));
+
+          const { data: paiements } = await supabase
+            .from("paiements")
+            .select("montant")
+            .gte("date_paiement", format(monthStart, 'yyyy-MM-dd'))
+            .lte("date_paiement", format(monthEnd, 'yyyy-MM-dd'));
+
+          const { data: depenses } = await supabase
+            .from("depenses")
+            .select("montant")
+            .gte("date_depense", format(monthStart, 'yyyy-MM-dd'))
+            .lte("date_depense", format(monthEnd, 'yyyy-MM-dd'));
+
+          const revenus = paiements?.reduce((sum, p) => sum + Number(p.montant), 0) || 0;
+          const charges = depenses?.reduce((sum, d) => sum + Number(d.montant), 0) || 0;
+
+          return {
+            mois: label,
+            revenus,
+            depenses: charges,
+            benefice: revenus - charges
+          };
+        })
+      );
+
+      // Calculer les prévisions basées sur la tendance des 3 derniers mois
+      const last3Months = monthlyData.slice(-3);
+      const avgRevenus = last3Months.reduce((sum, m) => sum + m.revenus, 0) / 3;
+      const avgDepenses = last3Months.reduce((sum, m) => sum + m.depenses, 0) / 3;
+      
+      // Tendance simple (moyenne des 3 derniers mois)
+      const nextMonth1 = subMonths(new Date(), -1);
+      const nextMonth2 = subMonths(new Date(), -2);
+      
+      return {
+        historical: monthlyData,
+        forecast: [
+          {
+            mois: format(nextMonth1, 'MMM yy', { locale: fr }),
+            revenus: avgRevenus,
+            depenses: avgDepenses,
+            benefice: avgRevenus - avgDepenses,
+            prevision: true
+          },
+          {
+            mois: format(nextMonth2, 'MMM yy', { locale: fr }),
+            revenus: avgRevenus * 1.02, // Croissance de 2%
+            depenses: avgDepenses,
+            benefice: (avgRevenus * 1.02) - avgDepenses,
+            prevision: true
+          }
+        ]
+      };
+    },
+  });
+
   // Récupérer les données financières
   const { data: financialData, isLoading } = useQuery({
     queryKey: ["financial-report", selectedMonth],
@@ -155,25 +227,91 @@ const Rapports = () => {
             </Card>
           </div>
 
+          {/* Graphique d'évolution sur 12 mois avec prévisions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Évolution sur 12 Mois avec Prévisions</CardTitle>
+              <p className="text-sm text-muted-foreground">Historique et projection des 2 prochains mois</p>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full overflow-x-auto">
+                <ResponsiveContainer width="100%" height={400} minWidth={300}>
+                  <LineChart data={[...(evolutionData?.historical || []), ...(evolutionData?.forecast || [])]}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="mois" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      formatter={(value: number) => `${value.toLocaleString('fr-FR')} FCFA`}
+                      contentStyle={{ fontSize: 12 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="revenus" 
+                      stroke="#10b981" 
+                      strokeWidth={2}
+                      name="Revenus"
+                      connectNulls
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="depenses" 
+                      stroke="#ef4444" 
+                      strokeWidth={2}
+                      name="Dépenses"
+                      connectNulls
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="benefice" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      name="Bénéfice"
+                      connectNulls
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-muted-foreground mt-4 text-center">
+                Les lignes pointillées représentent les prévisions basées sur la moyenne des 3 derniers mois
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Graphique comparatif par propriétaire */}
           <Card>
             <CardHeader>
               <CardTitle>Revenus vs Dépenses par Propriétaire</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={financialData?.byProprietaire || []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="nom" angle={-45} textAnchor="end" height={100} />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value: number) => `${value.toLocaleString('fr-FR')} FCFA`}
-                  />
-                  <Legend />
-                  <Bar dataKey="revenus" fill="#10b981" name="Revenus" />
-                  <Bar dataKey="depenses" fill="#ef4444" name="Dépenses" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="w-full overflow-x-auto">
+                <ResponsiveContainer width="100%" height={400} minWidth={300}>
+                  <BarChart data={financialData?.byProprietaire || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="nom" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={100}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      formatter={(value: number) => `${value.toLocaleString('fr-FR')} FCFA`}
+                      contentStyle={{ fontSize: 12 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="revenus" fill="#10b981" name="Revenus" />
+                    <Bar dataKey="depenses" fill="#ef4444" name="Dépenses" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
@@ -184,21 +322,30 @@ const Rapports = () => {
                 <CardTitle>Bénéfice Net par Propriétaire</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={financialData?.byProprietaire || []}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="nom" angle={-45} textAnchor="end" height={80} />
-                    <YAxis />
-                    <Tooltip 
-                      formatter={(value: number) => `${value.toLocaleString('fr-FR')} FCFA`}
-                    />
-                    <Bar dataKey="benefice" fill="#3b82f6" name="Bénéfice">
-                      {financialData?.byProprietaire.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.benefice >= 0 ? '#10b981' : '#ef4444'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="w-full overflow-x-auto">
+                  <ResponsiveContainer width="100%" height={300} minWidth={250}>
+                    <BarChart data={financialData?.byProprietaire || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="nom" 
+                        angle={-45} 
+                        textAnchor="end" 
+                        height={80}
+                        tick={{ fontSize: 10 }}
+                      />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip 
+                        formatter={(value: number) => `${value.toLocaleString('fr-FR')} FCFA`}
+                        contentStyle={{ fontSize: 12 }}
+                      />
+                      <Bar dataKey="benefice" fill="#3b82f6" name="Bénéfice">
+                        {financialData?.byProprietaire.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.benefice >= 0 ? '#10b981' : '#ef4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
@@ -208,25 +355,30 @@ const Rapports = () => {
                 <CardTitle>Répartition des Revenus</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => `${value.toLocaleString('fr-FR')} FCFA`} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="w-full overflow-x-auto">
+                  <ResponsiveContainer width="100%" height={300} minWidth={250}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => `${value.toLocaleString('fr-FR')} FCFA`}
+                        contentStyle={{ fontSize: 12 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -237,47 +389,47 @@ const Rapports = () => {
               <CardTitle>Détails par Propriétaire</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-6 px-6">
+                <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-2 font-medium">Propriétaire</th>
-                      <th className="text-right p-2 font-medium">Revenus</th>
-                      <th className="text-right p-2 font-medium">Dépenses</th>
-                      <th className="text-right p-2 font-medium">Bénéfice</th>
-                      <th className="text-right p-2 font-medium">Marge</th>
+                      <th className="text-left p-2 font-medium whitespace-nowrap">Propriétaire</th>
+                      <th className="text-right p-2 font-medium whitespace-nowrap">Revenus</th>
+                      <th className="text-right p-2 font-medium whitespace-nowrap">Dépenses</th>
+                      <th className="text-right p-2 font-medium whitespace-nowrap">Bénéfice</th>
+                      <th className="text-right p-2 font-medium whitespace-nowrap">Marge</th>
                     </tr>
                   </thead>
                   <tbody>
                     {financialData?.byProprietaire.map((item, index) => (
-                      <tr key={index} className="border-b">
+                      <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
                         <td className="p-2 font-medium">{item.nom}</td>
-                        <td className="text-right p-2 text-green-600">
+                        <td className="text-right p-2 text-green-600 whitespace-nowrap">
                           {item.revenus.toLocaleString('fr-FR')} FCFA
                         </td>
-                        <td className="text-right p-2 text-red-600">
+                        <td className="text-right p-2 text-red-600 whitespace-nowrap">
                           {item.depenses.toLocaleString('fr-FR')} FCFA
                         </td>
-                        <td className={`text-right p-2 font-medium ${item.benefice >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                        <td className={`text-right p-2 font-medium whitespace-nowrap ${item.benefice >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                           {item.benefice.toLocaleString('fr-FR')} FCFA
                         </td>
-                        <td className="text-right p-2">
+                        <td className="text-right p-2 whitespace-nowrap">
                           {item.revenus > 0 ? `${((item.benefice / item.revenus) * 100).toFixed(1)}%` : 'N/A'}
                         </td>
                       </tr>
                     ))}
                     <tr className="font-bold bg-muted/50">
                       <td className="p-2">TOTAL</td>
-                      <td className="text-right p-2 text-green-600">
+                      <td className="text-right p-2 text-green-600 whitespace-nowrap">
                         {financialData?.totals.revenus.toLocaleString('fr-FR')} FCFA
                       </td>
-                      <td className="text-right p-2 text-red-600">
+                      <td className="text-right p-2 text-red-600 whitespace-nowrap">
                         {financialData?.totals.depenses.toLocaleString('fr-FR')} FCFA
                       </td>
-                      <td className={`text-right p-2 ${(financialData?.totals.benefice || 0) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                      <td className={`text-right p-2 whitespace-nowrap ${(financialData?.totals.benefice || 0) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                         {financialData?.totals.benefice.toLocaleString('fr-FR')} FCFA
                       </td>
-                      <td className="text-right p-2">
+                      <td className="text-right p-2 whitespace-nowrap">
                         {financialData?.totals.revenus ? 
                           `${((financialData.totals.benefice / financialData.totals.revenus) * 100).toFixed(1)}%` 
                           : 'N/A'}

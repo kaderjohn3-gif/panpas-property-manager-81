@@ -112,62 +112,69 @@ const Paiements = () => {
           {isLoading ? (
             <div className="text-center py-12">Chargement...</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Locataire</TableHead>
-                  <TableHead>Bien</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPaiements?.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>{new Date(p.date_paiement).toLocaleDateString("fr-FR")}</TableCell>
-                    <TableCell className="font-medium">{p.locataires?.nom}</TableCell>
-                    <TableCell>{p.biens?.nom}</TableCell>
-                    <TableCell>{p.type}</TableCell>
-                    <TableCell className="font-bold">{parseFloat(p.montant.toString()).toLocaleString()} FCFA</TableCell>
-                    <TableCell>{getStatutBadge(p.statut)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handlePrintReceipt(p)}
-                        >
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedPaiement(p);
-                            setEditOpen(true);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedPaiement(p);
-                            setDeleteOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto -mx-6">
+              <div className="inline-block min-w-full align-middle px-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Date</TableHead>
+                      <TableHead className="whitespace-nowrap">Locataire</TableHead>
+                      <TableHead className="whitespace-nowrap">Bien</TableHead>
+                      <TableHead className="whitespace-nowrap">Type</TableHead>
+                      <TableHead className="whitespace-nowrap">Montant</TableHead>
+                      <TableHead className="whitespace-nowrap">Statut</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPaiements?.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="whitespace-nowrap">{new Date(p.date_paiement).toLocaleDateString("fr-FR")}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{p.locataires?.nom}</TableCell>
+                        <TableCell className="whitespace-nowrap">{p.biens?.nom}</TableCell>
+                        <TableCell className="whitespace-nowrap">{p.type}</TableCell>
+                        <TableCell className="font-bold whitespace-nowrap">{parseFloat(p.montant.toString()).toLocaleString()} FCFA</TableCell>
+                        <TableCell className="whitespace-nowrap">{getStatutBadge(p.statut)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2 whitespace-nowrap">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePrintReceipt(p)}
+                              title="Imprimer le reçu"
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedPaiement(p);
+                                setEditOpen(true);
+                              }}
+                              title="Modifier"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedPaiement(p);
+                                setDeleteOpen(true);
+                              }}
+                              title="Supprimer"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

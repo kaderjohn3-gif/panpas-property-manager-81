@@ -103,44 +103,49 @@ const Depenses = () => {
           {isLoading ? (
             <div className="text-center py-12">Chargement...</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Bien</TableHead>
-                  <TableHead>Catégorie</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Montant</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredDepenses?.map((depense) => (
-                  <TableRow key={depense.id}>
-                    <TableCell>{new Date(depense.date_depense).toLocaleDateString("fr-FR")}</TableCell>
-                    <TableCell className="font-medium">{depense.biens?.nom}</TableCell>
-                    <TableCell>
-                      <Badge className={getCategorieColor(depense.categorie)}>
-                        {getCategorieLabel(depense.categorie)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{depense.description}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {parseFloat(depense.montant.toString()).toLocaleString()} FCFA
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDeletingDepense(depense)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto -mx-6">
+              <div className="inline-block min-w-full align-middle px-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Date</TableHead>
+                      <TableHead className="whitespace-nowrap">Bien</TableHead>
+                      <TableHead className="whitespace-nowrap">Catégorie</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Montant</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDepenses?.map((depense) => (
+                      <TableRow key={depense.id}>
+                        <TableCell className="whitespace-nowrap">{new Date(depense.date_depense).toLocaleDateString("fr-FR")}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{depense.biens?.nom}</TableCell>
+                        <TableCell>
+                          <Badge className={getCategorieColor(depense.categorie)}>
+                            {getCategorieLabel(depense.categorie)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">{depense.description}</TableCell>
+                        <TableCell className="text-right font-medium whitespace-nowrap">
+                          {parseFloat(depense.montant.toString()).toLocaleString()} FCFA
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeletingDepense(depense)}
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           )}
           {!isLoading && filteredDepenses?.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">Aucune dépense trouvée</div>
