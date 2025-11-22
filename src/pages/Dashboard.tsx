@@ -149,77 +149,87 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
-        <p className="text-muted-foreground mt-1">Vue d'ensemble de votre activité immobilière</p>
+      <div className="space-y-2">
+        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          Tableau de bord
+        </h1>
+        <p className="text-muted-foreground text-lg">Vue d'ensemble de votre activité immobilière</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statsCards.map((stat) => (
-          <StatsCard key={stat.title} {...stat} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {statsCards.map((stat, index) => (
+          <div key={stat.title} className="animate-in" style={{ animationDelay: `${index * 100}ms` }}>
+            <StatsCard {...stat} />
+          </div>
         ))}
       </div>
 
       {/* Recent Alerts & Activities */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="hover-lift">
           <CardHeader>
-            <CardTitle>Alertes récentes</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-primary" />
+              Alertes récentes
+            </CardTitle>
             <CardDescription>Notifications importantes</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {recentAlerts.length > 0 ? (
               recentAlerts.map((alert) => (
-                <div key={alert.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                  {alert.type === "warning" && <AlertCircle className="h-5 w-5 text-warning mt-0.5" />}
-                  {alert.type === "success" && <CheckCircle className="h-5 w-5 text-success mt-0.5" />}
+                <div key={alert.id} className="flex items-start gap-3 p-3 rounded-lg border bg-gradient-to-r from-card to-muted/20 hover:shadow-sm transition-all">
+                  {alert.type === "warning" && <AlertCircle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />}
+                  {alert.type === "success" && <CheckCircle className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />}
                   <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium">{alert.message}</p>
+                    <p className="text-sm font-medium leading-snug">{alert.message}</p>
                     <p className="text-xs text-muted-foreground">{alert.date}</p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Aucune alerte pour le moment</p>
+              <p className="text-sm text-muted-foreground text-center py-12">Aucune alerte pour le moment</p>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-lift">
           <CardHeader>
-            <CardTitle>Biens par statut</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Biens par statut
+            </CardTitle>
             <CardDescription>Répartition de votre portefeuille</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between p-4 rounded-xl border bg-gradient-to-r from-success/5 to-success/10 hover:shadow-sm transition-all">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-success" />
+                <div className="h-12 w-12 rounded-full bg-success/20 flex items-center justify-center ring-2 ring-success/30">
+                  <CheckCircle className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Biens occupés</p>
+                  <p className="text-sm font-semibold">Biens occupés</p>
                   <p className="text-xs text-muted-foreground">Contrats actifs</p>
                 </div>
               </div>
-              <Badge variant="secondary" className="text-lg font-semibold">
+              <Badge variant="secondary" className="text-xl font-bold h-10 px-4">
                 {stats?.biensOccupes || 0}
               </Badge>
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+            <div className="flex items-center justify-between p-4 rounded-xl border bg-gradient-to-r from-primary/5 to-primary/10 hover:shadow-sm transition-all">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Building2 className="h-5 w-5 text-primary" />
+                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center ring-2 ring-primary/30">
+                  <Building2 className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Biens disponibles</p>
+                  <p className="text-sm font-semibold">Biens disponibles</p>
                   <p className="text-xs text-muted-foreground">Prêts à louer</p>
                 </div>
               </div>
-              <Badge variant="secondary" className="text-lg font-semibold">
+              <Badge variant="secondary" className="text-xl font-bold h-10 px-4">
                 {stats?.biensDisponibles || 0}
               </Badge>
             </div>

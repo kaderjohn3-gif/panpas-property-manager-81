@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { FileText, TrendingUp, DollarSign, Receipt } from "lucide-react";
+import { FileText, TrendingUp, DollarSign, Receipt, Users } from "lucide-react";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -161,17 +161,17 @@ const Rapports = () => {
     })) || [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <FileText className="h-8 w-8" />
+          <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <FileText className="h-8 w-8 text-primary" />
             Rapports Financiers
           </h1>
-          <p className="text-muted-foreground">Analyse des revenus et dépenses par propriétaire</p>
+          <p className="text-muted-foreground mt-1 text-lg">Analyse des revenus et dépenses par propriétaire</p>
         </div>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[200px] h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -189,38 +189,47 @@ const Rapports = () => {
       ) : (
         <>
           {/* Cartes de résumé */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Card className="hover-lift overflow-hidden relative group">
+              <div className="absolute inset-0 bg-gradient-to-br from-success/10 to-success/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
                 <CardTitle className="text-sm font-medium">Revenus Totaux</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <div className="h-10 w-10 rounded-lg bg-success/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <TrendingUp className="h-5 w-5 text-success" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
+              <CardContent className="relative z-10">
+                <div className="text-3xl font-bold text-success">
                   {financialData?.totals.revenus.toLocaleString('fr-FR')} FCFA
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card className="hover-lift overflow-hidden relative group">
+              <div className="absolute inset-0 bg-gradient-to-br from-destructive/10 to-destructive/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
                 <CardTitle className="text-sm font-medium">Dépenses Totales</CardTitle>
-                <Receipt className="h-4 w-4 text-muted-foreground" />
+                <div className="h-10 w-10 rounded-lg bg-destructive/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Receipt className="h-5 w-5 text-destructive" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
+              <CardContent className="relative z-10">
+                <div className="text-3xl font-bold text-destructive">
                   {financialData?.totals.depenses.toLocaleString('fr-FR')} FCFA
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card className="hover-lift overflow-hidden relative group sm:col-span-2 lg:col-span-1">
+              <div className={`absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity`} />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
                 <CardTitle className="text-sm font-medium">Bénéfice Net</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ${(financialData?.totals.benefice || 0) >= 0 ? 'bg-primary/20' : 'bg-destructive/20'}`}>
+                  <DollarSign className={`h-5 w-5 ${(financialData?.totals.benefice || 0) >= 0 ? 'text-primary' : 'text-destructive'}`} />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${(financialData?.totals.benefice || 0) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+              <CardContent className="relative z-10">
+                <div className={`text-3xl font-bold ${(financialData?.totals.benefice || 0) >= 0 ? 'text-primary' : 'text-destructive'}`}>
                   {financialData?.totals.benefice.toLocaleString('fr-FR')} FCFA
                 </div>
               </CardContent>
@@ -228,16 +237,19 @@ const Rapports = () => {
           </div>
 
           {/* Graphique d'évolution sur 12 mois avec prévisions */}
-          <Card>
+          <Card className="hover-lift">
             <CardHeader>
-              <CardTitle>Évolution sur 12 Mois avec Prévisions</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Évolution sur 12 Mois avec Prévisions
+              </CardTitle>
               <p className="text-sm text-muted-foreground">Historique et projection des 2 prochains mois</p>
             </CardHeader>
             <CardContent>
               <div className="w-full overflow-x-auto">
                 <ResponsiveContainer width="100%" height={400} minWidth={300}>
                   <LineChart data={[...(evolutionData?.historical || []), ...(evolutionData?.forecast || [])]}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-50" />
                     <XAxis 
                       dataKey="mois" 
                       angle={-45} 
@@ -248,52 +260,61 @@ const Rapports = () => {
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip 
                       formatter={(value: number) => `${value.toLocaleString('fr-FR')} FCFA`}
-                      contentStyle={{ fontSize: 12 }}
+                      contentStyle={{ fontSize: 12, borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Line 
                       type="monotone" 
                       dataKey="revenus" 
-                      stroke="#10b981" 
-                      strokeWidth={2}
+                      stroke="hsl(var(--success))" 
+                      strokeWidth={3}
                       name="Revenus"
                       connectNulls
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="depenses" 
-                      stroke="#ef4444" 
-                      strokeWidth={2}
+                      stroke="hsl(var(--destructive))" 
+                      strokeWidth={3}
                       name="Dépenses"
                       connectNulls
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="benefice" 
-                      stroke="#3b82f6" 
-                      strokeWidth={2}
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={3}
                       name="Bénéfice"
                       connectNulls
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
               <p className="text-xs text-muted-foreground mt-4 text-center">
-                Les lignes pointillées représentent les prévisions basées sur la moyenne des 3 derniers mois
+                Les prévisions sont basées sur la moyenne des 3 derniers mois
               </p>
             </CardContent>
           </Card>
 
           {/* Graphique comparatif par propriétaire */}
-          <Card>
+          <Card className="hover-lift">
             <CardHeader>
-              <CardTitle>Revenus vs Dépenses par Propriétaire</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Revenus vs Dépenses par Propriétaire
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="w-full overflow-x-auto">
                 <ResponsiveContainer width="100%" height={400} minWidth={300}>
                   <BarChart data={financialData?.byProprietaire || []}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-50" />
                     <XAxis 
                       dataKey="nom" 
                       angle={-45} 
@@ -304,11 +325,11 @@ const Rapports = () => {
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip 
                       formatter={(value: number) => `${value.toLocaleString('fr-FR')} FCFA`}
-                      contentStyle={{ fontSize: 12 }}
+                      contentStyle={{ fontSize: 12, borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="revenus" fill="#10b981" name="Revenus" />
-                    <Bar dataKey="depenses" fill="#ef4444" name="Dépenses" />
+                    <Bar dataKey="revenus" fill="hsl(var(--success))" name="Revenus" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="depenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
