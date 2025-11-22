@@ -10,6 +10,7 @@ import Proprietaires from "./pages/Proprietaires";
 import Locataires from "./pages/Locataires";
 import Paiements from "./pages/Paiements";
 import Depenses from "./pages/Depenses";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/locataires" element={<Locataires />} />
               <Route path="/paiements" element={<Paiements />} />
               <Route path="/depenses" element={<Depenses />} />
+              <Route path="/notifications" element={<Notifications />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
