@@ -2,6 +2,9 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { OccupancyChart } from "@/components/dashboard/OccupancyChart";
+import { PaymentStatusChart } from "@/components/dashboard/PaymentStatusChart";
 import { Building2, Users, UserCheck, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -165,6 +168,16 @@ const Dashboard = () => {
             <StatsCard {...stat} />
           </div>
         ))}
+      </div>
+
+      {/* Analytics Charts */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RevenueChart />
+        <OccupancyChart />
+      </div>
+
+      <div className="grid gap-4">
+        <PaymentStatusChart />
       </div>
 
       {/* Recent Alerts & Activities */}
