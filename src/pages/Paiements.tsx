@@ -3,10 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search } from "lucide-react";
+import { Search, Printer } from "lucide-react";
 import { AddPaiementDialog } from "@/components/paiements/AddPaiementDialog";
+import { generateReceiptPDF, imageToBase64 } from "@/lib/pdf-generator";
+import { toast } from "sonner";
+import logo from "@/assets/logo-panpas.jpg";
 
 const Paiements = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -16,12 +20,58 @@ const Paiements = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("paiements")
-        .select("*, locataires(nom), biens(nom)")
+        .select(`
+          *,
+          locataires(nom, telephone, email, adresse),
+          biens(nom, adresse),
+          contrats(loyer_mensuel)
+        `)
         .order("date_paiement", { ascending: false });
       if (error) throw error;
       return data;
     },
   });
+
+  const handlePrintReceipt = async (paiement: any) => {
+    try {
+      toast.loading("Génération du reçu PDF...");
+      
+      // Convert logo to base64
+      const logoBase64 = await imageToBase64(logo);
+      
+      // Generate PDF
+      await generateReceiptPDF(
+        {
+          id: paiement.id,
+          date_paiement: paiement.date_paiement,
+          montant: parseFloat(paiement.montant.toString()),
+          type: paiement.type,
+          mois_concerne: paiement.mois_concerne,
+          notes: paiement.notes,
+          locataire: {
+            nom: paiement.locataires?.nom || "",
+            telephone: paiement.locataires?.telephone || "",
+            email: paiement.locataires?.email,
+            adresse: paiement.locataires?.adresse,
+          },
+          bien: {
+            nom: paiement.biens?.nom || "",
+            adresse: paiement.biens?.adresse || "",
+          },
+          contrat: {
+            loyer_mensuel: parseFloat(paiement.contrats?.loyer_mensuel?.toString() || "0"),
+          },
+        },
+        logoBase64
+      );
+      
+      toast.dismiss();
+      toast.success("Reçu généré avec succès !");
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(`Erreur lors de la génération: ${error.message}`);
+    }
+  };
 
   const getStatutBadge = (statut: string) => {
     if (statut === "paye") return <Badge>Payé</Badge>;
@@ -66,6 +116,7 @@ const Paiements = () => {
                   <TableHead>Type</TableHead>
                   <TableHead>Montant</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -77,6 +128,17 @@ const Paiements = () => {
                     <TableCell>{p.type}</TableCell>
                     <TableCell className="font-bold">{parseFloat(p.montant.toString()).toLocaleString()} FCFA</TableCell>
                     <TableCell>{getStatutBadge(p.statut)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handlePrintReceipt(p)}
+                        className="gap-2"
+                      >
+                        <Printer className="h-4 w-4" />
+                        Reçu
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
