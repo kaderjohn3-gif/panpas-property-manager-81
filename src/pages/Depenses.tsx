@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Download, DollarSign, Wrench, Zap, Droplet } from "lucide-react";
+import { Search, Download, DollarSign, Wrench, Zap, Droplet, Trash2 } from "lucide-react";
 import { AddDepenseDialog } from "@/components/depenses/AddDepenseDialog";
+import { DeleteDepenseDialog } from "@/components/depenses/DeleteDepenseDialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 
 const Depenses = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletingDepense, setDeletingDepense] = useState<any>(null);
 
   const { data: depenses, isLoading } = useQuery({
     queryKey: ["depenses"],
@@ -109,6 +111,7 @@ const Depenses = () => {
                   <TableHead>Catégorie</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Montant</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -125,6 +128,15 @@ const Depenses = () => {
                     <TableCell className="text-right font-medium">
                       {parseFloat(depense.montant.toString()).toLocaleString()} FCFA
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeletingDepense(depense)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -135,6 +147,14 @@ const Depenses = () => {
           )}
         </CardContent>
       </Card>
+
+      {deletingDepense && (
+        <DeleteDepenseDialog
+          depense={deletingDepense}
+          open={!!deletingDepense}
+          onOpenChange={(open) => !open && setDeletingDepense(null)}
+        />
+      )}
     </div>
   );
 };

@@ -3,12 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Mail, Phone, MapPin, Search } from "lucide-react";
+import { Mail, Phone, MapPin, Search, Edit, Trash2 } from "lucide-react";
 import { AddProprietaireDialog } from "@/components/proprietaires/AddProprietaireDialog";
+import { EditProprietaireDialog } from "@/components/proprietaires/EditProprietaireDialog";
+import { DeleteProprietaireDialog } from "@/components/proprietaires/DeleteProprietaireDialog";
 
 const Proprietaires = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingProprietaire, setEditingProprietaire] = useState<any>(null);
+  const [deletingProprietaire, setDeletingProprietaire] = useState<any>(null);
 
   const { data: proprietaires, isLoading } = useQuery({
     queryKey: ["proprietaires"],
@@ -106,6 +111,26 @@ const Proprietaires = () => {
                     </span>
                   </div>
                 </div>
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingProprietaire(proprietaire)}
+                    className="flex-1"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Modifier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeletingProprietaire(proprietaire)}
+                    className="flex-1"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -116,6 +141,22 @@ const Proprietaires = () => {
         <div className="text-center py-12 text-muted-foreground">
           Aucun propriétaire trouvé
         </div>
+      )}
+
+      {editingProprietaire && (
+        <EditProprietaireDialog
+          proprietaire={editingProprietaire}
+          open={!!editingProprietaire}
+          onOpenChange={(open) => !open && setEditingProprietaire(null)}
+        />
+      )}
+
+      {deletingProprietaire && (
+        <DeleteProprietaireDialog
+          proprietaire={deletingProprietaire}
+          open={!!deletingProprietaire}
+          onOpenChange={(open) => !open && setDeletingProprietaire(null)}
+        />
       )}
     </div>
   );
