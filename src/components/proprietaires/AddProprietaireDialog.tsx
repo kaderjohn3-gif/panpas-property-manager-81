@@ -61,15 +61,15 @@ export const AddProprietaireDialog = () => {
           Ajouter un propriétaire
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nouveau Propriétaire</DialogTitle>
           <DialogDescription>Ajouter un nouveau propriétaire à votre base de données</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="nom">Nom complet *</Label>
-            <Input id="nom" value={nom} onChange={(e) => setNom(e.target.value)} required />
+            <Input id="nom" value={nom} onChange={(e) => setNom(e.target.value)} required className="w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="telephone">Téléphone *</Label>
@@ -87,7 +87,7 @@ export const AddProprietaireDialog = () => {
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>

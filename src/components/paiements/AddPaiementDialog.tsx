@@ -91,16 +91,16 @@ export const AddPaiementDialog = () => {
           Enregistrer un paiement
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nouveau Paiement</DialogTitle>
           <DialogDescription>Enregistrer un paiement de loyer, avance ou caution</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="contrat">Contrat / Locataire *</Label>
             <Select value={contratId} onValueChange={setContratId}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Sélectionner un contrat" />
               </SelectTrigger>
               <SelectContent>
@@ -123,7 +123,7 @@ export const AddPaiementDialog = () => {
           <div className="space-y-2">
             <Label htmlFor="type">Type de paiement *</Label>
             <Select value={type} onValueChange={(v: any) => setType(v)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -175,7 +175,7 @@ export const AddPaiementDialog = () => {
             <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>

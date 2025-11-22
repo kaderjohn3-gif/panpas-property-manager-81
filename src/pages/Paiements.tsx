@@ -6,14 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Printer } from "lucide-react";
+import { Search, Printer, Edit, Trash2 } from "lucide-react";
 import { AddPaiementDialog } from "@/components/paiements/AddPaiementDialog";
+import { EditPaiementDialog } from "@/components/paiements/EditPaiementDialog";
+import { DeletePaiementDialog } from "@/components/paiements/DeletePaiementDialog";
 import { generateReceiptPDF, imageToBase64 } from "@/lib/pdf-generator";
 import { toast } from "sonner";
 import logo from "@/assets/logo-panpas.jpg";
 
 const Paiements = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPaiement, setSelectedPaiement] = useState<any>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data: paiements, isLoading } = useQuery({
     queryKey: ["paiements"],
@@ -129,15 +134,35 @@ const Paiements = () => {
                     <TableCell className="font-bold">{parseFloat(p.montant.toString()).toLocaleString()} FCFA</TableCell>
                     <TableCell>{getStatutBadge(p.statut)}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handlePrintReceipt(p)}
-                        className="gap-2"
-                      >
-                        <Printer className="h-4 w-4" />
-                        Reçu
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handlePrintReceipt(p)}
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedPaiement(p);
+                            setEditOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedPaiement(p);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -146,6 +171,21 @@ const Paiements = () => {
           )}
         </CardContent>
       </Card>
+
+      {selectedPaiement && (
+        <>
+          <EditPaiementDialog
+            paiement={selectedPaiement}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+          />
+          <DeletePaiementDialog
+            paiement={selectedPaiement}
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+          />
+        </>
+      )}
     </div>
   );
 };

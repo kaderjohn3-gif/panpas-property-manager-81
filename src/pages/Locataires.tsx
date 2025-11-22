@@ -3,13 +3,24 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Phone, MapPin, Building2, Search } from "lucide-react";
+import { Phone, MapPin, Building2, Search, Edit, Trash2 } from "lucide-react";
 import { AddContratDialog } from "@/components/locataires/AddContratDialog";
+import { EditLocataireDialog } from "@/components/locataires/EditLocataireDialog";
+import { DeleteLocataireDialog } from "@/components/locataires/DeleteLocataireDialog";
+import { EditContratDialog } from "@/components/locataires/EditContratDialog";
+import { DeleteContratDialog } from "@/components/locataires/DeleteContratDialog";
 
 const Locataires = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLocataire, setSelectedLocataire] = useState<any>(null);
+  const [selectedContrat, setSelectedContrat] = useState<any>(null);
+  const [editLocataireOpen, setEditLocataireOpen] = useState(false);
+  const [deleteLocataireOpen, setDeleteLocataireOpen] = useState(false);
+  const [editContratOpen, setEditContratOpen] = useState(false);
+  const [deleteContratOpen, setDeleteContratOpen] = useState(false);
 
   const { data: contrats, isLoading } = useQuery({
     queryKey: ["contrats"],
@@ -73,22 +84,88 @@ const Locataires = () => {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                   <span>{contrat.biens?.nom}</span>
                 </div>
-                <div className="pt-3 border-t">
+                <div className="pt-3 border-t space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Loyer</span>
                     <span className="font-bold">{contrat.loyer_mensuel.toLocaleString()} FCFA</span>
                   </div>
                   {contrat.avance_mois > 0 && (
-                    <div className="flex justify-between text-sm mt-1">
+                    <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Avance</span>
                       <Badge variant="outline">{contrat.avance_mois} mois</Badge>
                     </div>
                   )}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedLocataire(contrat.locataires);
+                        setEditLocataireOpen(true);
+                      }}
+                      className="flex-1"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Locataire
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedContrat(contrat);
+                        setEditContratOpen(true);
+                      }}
+                      className="flex-1"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Contrat
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedContrat(contrat);
+                        setDeleteContratOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
+      )}
+
+      {selectedLocataire && (
+        <>
+          <EditLocataireDialog
+            locataire={selectedLocataire}
+            open={editLocataireOpen}
+            onOpenChange={setEditLocataireOpen}
+          />
+          <DeleteLocataireDialog
+            locataire={selectedLocataire}
+            open={deleteLocataireOpen}
+            onOpenChange={setDeleteLocataireOpen}
+          />
+        </>
+      )}
+
+      {selectedContrat && (
+        <>
+          <EditContratDialog
+            contrat={selectedContrat}
+            open={editContratOpen}
+            onOpenChange={setEditContratOpen}
+          />
+          <DeleteContratDialog
+            contrat={selectedContrat}
+            open={deleteContratOpen}
+            onOpenChange={setDeleteContratOpen}
+          />
+        </>
       )}
     </div>
   );
