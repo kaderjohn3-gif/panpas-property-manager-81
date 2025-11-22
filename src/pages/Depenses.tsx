@@ -1,193 +1,138 @@
 import { useState } from "react";
-import { Plus, Search, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Search, Download, DollarSign, Wrench, Zap, Droplet } from "lucide-react";
+import { AddDepenseDialog } from "@/components/depenses/AddDepenseDialog";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 
 const Depenses = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Mock data
-  const depenses = [
-    {
-      id: 1,
-      date: "12/04/2024",
-      bien: "Maison Kara Centre",
-      categorie: "Réparation",
-      description: "Réparation toiture",
-      montant: "85000",
+  const { data: depenses, isLoading } = useQuery({
+    queryKey: ["depenses"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("depenses")
+        .select("*, biens(nom, adresse)")
+        .order("date_depense", { ascending: false });
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 2,
-      date: "15/04/2024",
-      bien: "Résidence Étoile",
-      categorie: "Électricité",
-      description: "Facture électricité Avril",
-      montant: "35000",
-    },
-    {
-      id: 3,
-      date: "18/04/2024",
-      bien: "Appartement Plateau",
-      categorie: "Eau",
-      description: "Facture eau Avril",
-      montant: "12000",
-    },
-    {
-      id: 4,
-      date: "20/04/2024",
-      bien: "Maison Kara Centre",
-      categorie: "Vidange",
-      description: "Vidange WC",
-      montant: "25000",
-    },
-  ];
+  });
 
   const getCategorieColor = (categorie: string) => {
-    switch (categorie) {
-      case "Réparation":
-        return "bg-destructive/10 text-destructive";
-      case "Électricité":
-        return "bg-warning/10 text-warning";
-      case "Eau":
-        return "bg-primary/10 text-primary";
-      case "Vidange":
-        return "bg-secondary/10 text-secondary-foreground";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
+    const colors: Record<string, string> = {
+      reparation: "bg-orange-500",
+      electricite: "bg-yellow-500",
+      eau: "bg-blue-500",
+      vidange: "bg-purple-500",
+      autre: "bg-gray-500",
+    };
+    return colors[categorie] || "bg-gray-500";
   };
 
-  const totalDepenses = depenses.reduce(
-    (acc, dep) => acc + parseInt(dep.montant),
-    0
+  const getCategorieLabel = (categorie: string) => {
+    const labels: Record<string, string> = {
+      reparation: "Réparation",
+      electricite: "Électricité",
+      eau: "Eau",
+      vidange: "Vidange",
+      autre: "Autre",
+    };
+    return labels[categorie] || categorie;
+  };
+
+  const totalDepenses = depenses?.reduce((sum, d) => sum + parseFloat(d.montant.toString()), 0) || 0;
+  const reparations = depenses?.filter((d) => d.categorie === "reparation").reduce((sum, d) => sum + parseFloat(d.montant.toString()), 0) || 0;
+  const electricite = depenses?.filter((d) => d.categorie === "electricite").reduce((sum, d) => sum + parseFloat(d.montant.toString()), 0) || 0;
+  const autres = totalDepenses - reparations - electricite;
+
+  const filteredDepenses = depenses?.filter(
+    (d) =>
+      d.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.biens?.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      getCategorieLabel(d.categorie).toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dépenses</h1>
-          <p className="text-muted-foreground mt-1">
-            Suivez toutes les dépenses liées aux biens
-          </p>
+          <h1 className="text-3xl font-bold">Dépenses</h1>
+          <p className="text-muted-foreground">Suivi et gestion des dépenses par bien</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Ajouter une dépense
-        </Button>
+        <AddDepenseDialog />
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="md:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total ce mois
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {totalDepenses.toLocaleString()} CFA
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {depenses.length} dépenses
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Réparations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">85K CFA</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Électricité
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">35K CFA</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Autres
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">37K CFA</div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard title="Total Dépenses" value={`${totalDepenses.toLocaleString()} FCFA`} icon={DollarSign} />
+        <StatsCard title="Réparations" value={`${reparations.toLocaleString()} FCFA`} icon={Wrench} />
+        <StatsCard title="Électricité" value={`${electricite.toLocaleString()} FCFA`} icon={Zap} />
+        <StatsCard title="Autres" value={`${autres.toLocaleString()} FCFA`} icon={Droplet} />
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher une dépense..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          Exporter
-        </Button>
-      </div>
-
-      {/* Depenses Table */}
       <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Bien</TableHead>
-                <TableHead>Catégorie</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Montant</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {depenses.map((depense) => (
-                <TableRow key={depense.id}>
-                  <TableCell className="font-medium">{depense.date}</TableCell>
-                  <TableCell>{depense.bien}</TableCell>
-                  <TableCell>
-                    <Badge className={getCategorieColor(depense.categorie)}>
-                      {depense.categorie}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{depense.description}</TableCell>
-                  <TableCell className="text-right font-semibold text-destructive">
-                    {parseInt(depense.montant).toLocaleString()} CFA
-                  </TableCell>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <CardTitle>Historique des dépenses</CardTitle>
+            <div className="flex gap-2 w-full md:w-auto">
+              <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              <Button variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Exporter
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-12">Chargement...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Bien</TableHead>
+                  <TableHead>Catégorie</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredDepenses?.map((depense) => (
+                  <TableRow key={depense.id}>
+                    <TableCell>{new Date(depense.date_depense).toLocaleDateString("fr-FR")}</TableCell>
+                    <TableCell className="font-medium">{depense.biens?.nom}</TableCell>
+                    <TableCell>
+                      <Badge className={getCategorieColor(depense.categorie)}>
+                        {getCategorieLabel(depense.categorie)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{depense.description}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {parseFloat(depense.montant.toString()).toLocaleString()} FCFA
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {!isLoading && filteredDepenses?.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">Aucune dépense trouvée</div>
+          )}
         </CardContent>
       </Card>
     </div>
