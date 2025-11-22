@@ -5,7 +5,8 @@ import {
   Users, 
   UserCheck, 
   CreditCard, 
-  Receipt 
+  Receipt,
+  Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ const navItems = [
   { to: "/locataires", icon: UserCheck, label: "Locataires" },
   { to: "/paiements", icon: CreditCard, label: "Paiements" },
   { to: "/depenses", icon: Receipt, label: "Dépenses" },
+  { to: "/notifications", icon: Bell, label: "Notifications" },
 ];
 
 export const Navigation = ({ mobile }: NavigationProps) => {
