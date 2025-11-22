@@ -3,12 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, MapPin, User, DollarSign, Search } from "lucide-react";
+import { Building2, MapPin, User, DollarSign, Search, Edit, Trash2 } from "lucide-react";
 import { AddBienDialog } from "@/components/biens/AddBienDialog";
+import { EditBienDialog } from "@/components/biens/EditBienDialog";
+import { DeleteBienDialog } from "@/components/biens/DeleteBienDialog";
 
 const Biens = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingBien, setEditingBien] = useState<any>(null);
+  const [deletingBien, setDeletingBien] = useState<any>(null);
 
   const { data: biens, isLoading } = useQuery({
     queryKey: ["biens"],
@@ -104,6 +109,26 @@ const Biens = () => {
                     </span>
                   </div>
                 </div>
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingBien(bien)}
+                    className="flex-1"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Modifier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeletingBien(bien)}
+                    className="flex-1"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -112,6 +137,22 @@ const Biens = () => {
 
       {!isLoading && filteredBiens?.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">Aucun bien trouvé</div>
+      )}
+
+      {editingBien && (
+        <EditBienDialog
+          bien={editingBien}
+          open={!!editingBien}
+          onOpenChange={(open) => !open && setEditingBien(null)}
+        />
+      )}
+
+      {deletingBien && (
+        <DeleteBienDialog
+          bien={deletingBien}
+          open={!!deletingBien}
+          onOpenChange={(open) => !open && setDeletingBien(null)}
+        />
       )}
     </div>
   );
