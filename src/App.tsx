@@ -11,6 +11,7 @@ import Locataires from "./pages/Locataires";
 import Paiements from "./pages/Paiements";
 import Depenses from "./pages/Depenses";
 import Notifications from "./pages/Notifications";
+import Rapports from "./pages/Rapports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/paiements" element={<Paiements />} />
               <Route path="/depenses" element={<Depenses />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/rapports" element={<Rapports />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
