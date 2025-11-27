@@ -28,7 +28,7 @@ const Paiements = () => {
         .select(`
           *,
           locataires(nom, telephone, email, adresse),
-          biens(nom, adresse),
+          biens(nom, adresse, type),
           contrats(loyer_mensuel)
         `)
         .order("date_paiement", { ascending: false });
@@ -62,6 +62,7 @@ const Paiements = () => {
           bien: {
             nom: paiement.biens?.nom || "",
             adresse: paiement.biens?.adresse || "",
+            type: paiement.biens?.type || "maison",
           },
           contrat: {
             loyer_mensuel: parseFloat(paiement.contrats?.loyer_mensuel?.toString() || "0"),

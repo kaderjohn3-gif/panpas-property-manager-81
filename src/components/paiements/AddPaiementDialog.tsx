@@ -99,16 +99,26 @@ export const AddPaiementDialog = () => {
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="contrat">Contrat / Locataire *</Label>
-            <Select value={contratId} onValueChange={setContratId}>
+            <Select value={contratId} onValueChange={setContratId} required>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Sélectionner un contrat" />
+                <SelectValue placeholder={
+                  contratsActifs && contratsActifs.length > 0 
+                    ? "Sélectionner un contrat actif" 
+                    : "Aucun contrat actif disponible"
+                } />
               </SelectTrigger>
               <SelectContent>
-                {contratsActifs?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.locataires?.nom} - {c.biens?.nom}
-                  </SelectItem>
-                ))}
+                {contratsActifs && contratsActifs.length > 0 ? (
+                  contratsActifs.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.locataires?.nom} - {c.biens?.nom}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="p-2 text-sm text-muted-foreground text-center">
+                    Aucun contrat actif
+                  </div>
+                )}
               </SelectContent>
             </Select>
           </div>
