@@ -23,17 +23,43 @@ export const DeleteBienDialog = ({ bien, open, onOpenChange }: DeleteBienDialogP
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      // Check if bien has active contrats
+      // Vérifier tous les contrats (actifs et terminés)
       const { data: contrats } = await supabase
         .from("contrats")
-        .select("id")
-        .eq("bien_id", bien.id)
-        .eq("statut", "actif");
+        .select("id, statut")
+        .eq("bien_id", bien.id);
 
       if (contrats && contrats.length > 0) {
-        throw new Error("Impossible de supprimer : ce bien a des contrats actifs");
+        const activeContrats = contrats.filter(c => c.statut === "actif");
+        if (activeContrats.length > 0) {
+          throw new Error(`Impossible de supprimer : ce bien a ${activeContrats.length} contrat(s) actif(s). Veuillez d'abord terminer les contrats.`);
+        }
+        throw new Error(`Impossible de supprimer : ce bien a ${contrats.length} contrat(s) associé(s). Veuillez d'abord supprimer les contrats terminés.`);
       }
 
+      // Vérifier les paiements
+      const { data: paiements } = await supabase
+        .from("paiements")
+        .select("id")
+        .eq("bien_id", bien.id)
+        .limit(1);
+
+      if (paiements && paiements.length > 0) {
+        throw new Error("Impossible de supprimer : ce bien a des paiements associés. Veuillez d'abord supprimer les paiements.");
+      }
+
+      // Vérifier les dépenses
+      const { data: depenses } = await supabase
+        .from("depenses")
+        .select("id")
+        .eq("bien_id", bien.id)
+        .limit(1);
+
+      if (depenses && depenses.length > 0) {
+        throw new Error("Impossible de supprimer : ce bien a des dépenses associées. Veuillez d'abord supprimer les dépenses.");
+      }
+
+      // Si tout est OK, supprimer le bien
       const { error } = await supabase.from("biens").delete().eq("id", bien.id);
       if (error) throw error;
     },

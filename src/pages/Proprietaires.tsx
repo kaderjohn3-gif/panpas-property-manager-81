@@ -9,11 +9,13 @@ import { Mail, Phone, MapPin, Search, Edit, Trash2 } from "lucide-react";
 import { AddProprietaireDialog } from "@/components/proprietaires/AddProprietaireDialog";
 import { EditProprietaireDialog } from "@/components/proprietaires/EditProprietaireDialog";
 import { DeleteProprietaireDialog } from "@/components/proprietaires/DeleteProprietaireDialog";
+import { ProprietaireBiensDialog } from "@/components/proprietaires/ProprietaireBiensDialog";
 
 const Proprietaires = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingProprietaire, setEditingProprietaire] = useState<any>(null);
   const [deletingProprietaire, setDeletingProprietaire] = useState<any>(null);
+  const [viewingBiens, setViewingBiens] = useState<any>(null);
 
   const { data: proprietaires, isLoading } = useQuery({
     queryKey: ["proprietaires"],
@@ -158,6 +160,14 @@ const Proprietaires = () => {
           proprietaire={deletingProprietaire}
           open={!!deletingProprietaire}
           onOpenChange={(open) => !open && setDeletingProprietaire(null)}
+        />
+      )}
+
+      {viewingBiens && (
+        <ProprietaireBiensDialog
+          proprietaire={viewingBiens}
+          open={!!viewingBiens}
+          onOpenChange={(open) => !open && setViewingBiens(null)}
         />
       )}
     </div>
