@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Mail, Phone, MapPin, Search, Edit, Trash2 } from "lucide-react";
+import { Mail, Phone, MapPin, Search, Edit, Trash2, Building2 } from "lucide-react";
 import { AddProprietaireDialog } from "@/components/proprietaires/AddProprietaireDialog";
 import { EditProprietaireDialog } from "@/components/proprietaires/EditProprietaireDialog";
 import { DeleteProprietaireDialog } from "@/components/proprietaires/DeleteProprietaireDialog";
@@ -115,25 +115,36 @@ const Proprietaires = () => {
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-2 pt-3 border-t">
+                <div className="flex flex-col gap-2 pt-3 border-t">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setEditingProprietaire(proprietaire)}
-                    className="flex-1"
+                    onClick={() => setViewingBiens(proprietaire)}
+                    className="w-full"
                   >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Modifier
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Voir les biens ({proprietaire.biens?.length || 0})
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDeletingProprietaire(proprietaire)}
-                    className="flex-1"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Supprimer
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingProprietaire(proprietaire)}
+                      className="flex-1"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Modifier
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletingProprietaire(proprietaire)}
+                      className="flex-1"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Supprimer
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

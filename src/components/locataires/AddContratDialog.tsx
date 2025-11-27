@@ -155,14 +155,20 @@ export const AddContratDialog = () => {
               <Label htmlFor="bien">Bien *</Label>
               <Select value={bienId} onValueChange={setBienId}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Sélectionner un bien" />
+                  <SelectValue placeholder={biensDisponibles && biensDisponibles.length > 0 ? "Sélectionner un bien disponible" : "Aucun bien disponible"} />
                 </SelectTrigger>
-                <SelectContent>
-                  {biensDisponibles?.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.nom} - {b.loyer_mensuel.toLocaleString()} FCFA/mois
-                    </SelectItem>
-                  ))}
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  {biensDisponibles && biensDisponibles.length > 0 ? (
+                    biensDisponibles.map((b) => (
+                      <SelectItem key={b.id} value={b.id} className="cursor-pointer hover:bg-accent">
+                        {b.nom} - {b.loyer_mensuel.toLocaleString()} FCFA/mois
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                      Aucun bien disponible. Veuillez d'abord ajouter des biens.
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>

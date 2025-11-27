@@ -23,43 +23,42 @@ export const DeleteBienDialog = ({ bien, open, onOpenChange }: DeleteBienDialogP
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      // Vérifier tous les contrats (actifs et terminés)
-      const { data: contrats } = await supabase
+      // Vérifier seulement les contrats ACTIFS
+      const { data: contratsActifs } = await supabase
         .from("contrats")
-        .select("id, statut")
+        .select("id")
+        .eq("bien_id", bien.id)
+        .eq("statut", "actif");
+
+      if (contratsActifs && contratsActifs.length > 0) {
+        throw new Error(`Impossible de supprimer : ce bien a ${contratsActifs.length} contrat(s) actif(s). Veuillez d'abord terminer les contrats.`);
+      }
+
+      // Supprimer d'abord les paiements associés (en cascade)
+      const { error: paiementsError } = await supabase
+        .from("paiements")
+        .delete()
         .eq("bien_id", bien.id);
 
-      if (contrats && contrats.length > 0) {
-        const activeContrats = contrats.filter(c => c.statut === "actif");
-        if (activeContrats.length > 0) {
-          throw new Error(`Impossible de supprimer : ce bien a ${activeContrats.length} contrat(s) actif(s). Veuillez d'abord terminer les contrats.`);
-        }
-        throw new Error(`Impossible de supprimer : ce bien a ${contrats.length} contrat(s) associé(s). Veuillez d'abord supprimer les contrats terminés.`);
-      }
+      if (paiementsError) throw paiementsError;
 
-      // Vérifier les paiements
-      const { data: paiements } = await supabase
-        .from("paiements")
-        .select("id")
-        .eq("bien_id", bien.id)
-        .limit(1);
-
-      if (paiements && paiements.length > 0) {
-        throw new Error("Impossible de supprimer : ce bien a des paiements associés. Veuillez d'abord supprimer les paiements.");
-      }
-
-      // Vérifier les dépenses
-      const { data: depenses } = await supabase
+      // Supprimer les dépenses associées (en cascade)
+      const { error: depensesError } = await supabase
         .from("depenses")
-        .select("id")
-        .eq("bien_id", bien.id)
-        .limit(1);
+        .delete()
+        .eq("bien_id", bien.id);
 
-      if (depenses && depenses.length > 0) {
-        throw new Error("Impossible de supprimer : ce bien a des dépenses associées. Veuillez d'abord supprimer les dépenses.");
-      }
+      if (depensesError) throw depensesError;
 
-      // Si tout est OK, supprimer le bien
+      // Supprimer les contrats terminés associés (en cascade)
+      const { error: contratsError } = await supabase
+        .from("contrats")
+        .delete()
+        .eq("bien_id", bien.id);
+
+      if (contratsError) throw contratsError;
+
+      // Supprimer le bien
       const { error } = await supabase.from("biens").delete().eq("id", bien.id);
       if (error) throw error;
     },

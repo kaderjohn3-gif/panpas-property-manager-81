@@ -24,16 +24,39 @@ export const DeleteProprietaireDialog = ({ proprietaire, open, onOpenChange }: D
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      // Check if proprietaire has biens
+      // Récupérer tous les biens du propriétaire
       const { data: biens } = await supabase
         .from("biens")
-        .select("id")
+        .select("id, contrats(id, statut)")
         .eq("proprietaire_id", proprietaire.id);
 
       if (biens && biens.length > 0) {
-        throw new Error("Impossible de supprimer : ce propriétaire possède des biens");
+        // Vérifier s'il y a des contrats actifs
+        const hasActiveContracts = biens.some(bien => 
+          bien.contrats?.some(c => c.statut === "actif")
+        );
+
+        if (hasActiveContracts) {
+          throw new Error("Impossible de supprimer : ce propriétaire a des biens avec des contrats actifs. Veuillez d'abord terminer les contrats.");
+        }
+
+        // Supprimer tous les biens et leurs données associées
+        for (const bien of biens) {
+          // Supprimer les paiements
+          await supabase.from("paiements").delete().eq("bien_id", bien.id);
+          
+          // Supprimer les dépenses
+          await supabase.from("depenses").delete().eq("bien_id", bien.id);
+          
+          // Supprimer les contrats terminés
+          await supabase.from("contrats").delete().eq("bien_id", bien.id);
+          
+          // Supprimer le bien
+          await supabase.from("biens").delete().eq("id", bien.id);
+        }
       }
 
+      // Supprimer le propriétaire
       const { error } = await supabase.from("proprietaires").delete().eq("id", proprietaire.id);
       if (error) throw error;
     },
