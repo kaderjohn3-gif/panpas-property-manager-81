@@ -17,6 +17,7 @@ export type Database = {
       biens: {
         Row: {
           adresse: string
+          commission_pourcentage: number
           created_at: string
           description: string | null
           id: string
@@ -29,6 +30,7 @@ export type Database = {
         }
         Insert: {
           adresse: string
+          commission_pourcentage?: number
           created_at?: string
           description?: string | null
           id?: string
@@ -41,6 +43,7 @@ export type Database = {
         }
         Update: {
           adresse?: string
+          commission_pourcentage?: number
           created_at?: string
           description?: string | null
           id?: string

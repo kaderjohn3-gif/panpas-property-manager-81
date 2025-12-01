@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 const Dashboard = () => {
   const queryClient = useQueryClient();
 
-  // Realtime subscription
+  // Realtime subscription - Synchronisation complète
   useEffect(() => {
     const channel = supabase
       .channel("dashboard-changes")
@@ -23,6 +23,12 @@ const Dashboard = () => {
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "paiements" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "depenses" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "proprietaires" }, () => {
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       })
       .subscribe();
@@ -88,6 +94,15 @@ const Dashboard = () => {
 
       const paiementsDuJour = paiementsAujourdhui?.length || 0;
 
+      // Calculate commissions (10% of monthly revenue)
+      const { data: biensWithCommissions } = await supabase
+        .from("biens")
+        .select("commission_pourcentage, loyer_mensuel, statut");
+      
+      const commissionTotale = biensWithCommissions
+        ?.filter(b => b.statut === "occupe")
+        .reduce((sum, b) => sum + (b.loyer_mensuel * (b.commission_pourcentage / 100)), 0) || 0;
+
       return {
         totalBiens,
         biensOccupes,
@@ -97,6 +112,7 @@ const Dashboard = () => {
         revenusMensuels,
         paiementsEnRetard,
         paiementsDuJour,
+        commissionMensuelle: commissionTotale,
       };
     },
   });
@@ -125,6 +141,12 @@ const Dashboard = () => {
       value: `${((stats?.revenusMensuels || 0) / 1000000).toFixed(1)}M CFA`,
       icon: TrendingUp,
       description: "Loyers collectés ce mois",
+    },
+    {
+      title: "Commission du mois",
+      value: `${((stats?.commissionMensuelle || 0) / 1000).toFixed(0)}K CFA`,
+      icon: TrendingUp,
+      description: "Commission PANPAS (10%)",
     },
   ];
 
@@ -162,7 +184,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {statsCards.map((stat, index) => (
           <div key={stat.title} className="animate-in" style={{ animationDelay: `${index * 100}ms` }}>
             <StatsCard {...stat} />

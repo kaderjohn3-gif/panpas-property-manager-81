@@ -2,16 +2,35 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { FileText, TrendingUp, DollarSign, Receipt, Users } from "lucide-react";
+import { FileText, TrendingUp, DollarSign, Receipt, Users, Printer } from "lucide-react";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
+import { generateRapportPDF, imageToBase64 } from "@/lib/pdf-generator";
+import logo from "@/assets/logo-panpas.jpg";
+import { toast } from "sonner";
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
 const Rapports = () => {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  
+  const handlePrintReport = async () => {
+    if (!financialData) {
+      toast.error("Aucune donnée à imprimer");
+      return;
+    }
+    try {
+      const logoBase64 = await imageToBase64(logo);
+      await generateRapportPDF(financialData, selectedMonth, logoBase64);
+      toast.success("Rapport généré avec succès");
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast.error("Erreur lors de la génération du rapport");
+    }
+  };
   
   const monthStart = startOfMonth(new Date(selectedMonth));
   const monthEnd = endOfMonth(new Date(selectedMonth));
@@ -170,18 +189,24 @@ const Rapports = () => {
           </h1>
           <p className="text-muted-foreground mt-1 text-lg">Analyse des revenus et dépenses par propriétaire</p>
         </div>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[200px] h-11">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {monthOptions.map(option => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[200px] h-11">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={handlePrintReport} className="gap-2 h-11">
+            <Printer className="h-4 w-4" />
+            Imprimer le Rapport
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

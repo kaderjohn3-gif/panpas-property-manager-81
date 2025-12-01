@@ -18,6 +18,7 @@ export const AddBienDialog = () => {
   const [proprietaireId, setProprietaireId] = useState("");
   const [loyerMensuel, setLoyerMensuel] = useState("");
   const [description, setDescription] = useState("");
+  const [commissionPourcentage, setCommissionPourcentage] = useState("10");
   const queryClient = useQueryClient();
 
   const { data: proprietaires } = useQuery({
@@ -38,6 +39,7 @@ export const AddBienDialog = () => {
         proprietaire_id: proprietaireId,
         loyer_mensuel: parseFloat(loyerMensuel),
         description: description || null,
+        commission_pourcentage: parseFloat(commissionPourcentage),
       });
       if (error) throw error;
     },
@@ -59,6 +61,7 @@ export const AddBienDialog = () => {
     setProprietaireId("");
     setLoyerMensuel("");
     setDescription("");
+    setCommissionPourcentage("10");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -127,6 +130,22 @@ export const AddBienDialog = () => {
               onChange={(e) => setLoyerMensuel(e.target.value)}
               required
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="commission">Commission PANPAS (%) *</Label>
+            <Input
+              id="commission"
+              type="number"
+              step="0.1"
+              min="0"
+              max="100"
+              value={commissionPourcentage}
+              onChange={(e) => setCommissionPourcentage(e.target.value)}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Pourcentage de commission sur le loyer mensuel (par défaut: 10%)
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
