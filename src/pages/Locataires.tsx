@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Phone, MapPin, Building2, Search, Edit, Trash2 } from "lucide-react";
+import { Phone, MapPin, Building2, Search, Edit, Trash2, FileText } from "lucide-react";
 import { AddContratDialog } from "@/components/locataires/AddContratDialog";
 import { EditLocataireDialog } from "@/components/locataires/EditLocataireDialog";
 import { DeleteLocataireDialog } from "@/components/locataires/DeleteLocataireDialog";
 import { EditContratDialog } from "@/components/locataires/EditContratDialog";
 import { DeleteContratDialog } from "@/components/locataires/DeleteContratDialog";
+import { ContratDetailsDialog } from "@/components/locataires/ContratDetailsDialog";
 
 const Locataires = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,6 +22,7 @@ const Locataires = () => {
   const [deleteLocataireOpen, setDeleteLocataireOpen] = useState(false);
   const [editContratOpen, setEditContratOpen] = useState(false);
   const [deleteContratOpen, setDeleteContratOpen] = useState(false);
+  const [viewContratOpen, setViewContratOpen] = useState(false);
 
   const { data: contrats, isLoading } = useQuery({
     queryKey: ["contrats"],
@@ -102,42 +104,56 @@ const Locataires = () => {
                       <Badge variant="outline">{contrat.avance_mois} mois</Badge>
                     </div>
                   )}
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedLocataire(contrat.locataires);
-                        setEditLocataireOpen(true);
-                      }}
-                      className="flex-1"
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Locataire
-                    </Button>
+                  <div className="space-y-2 pt-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
                         setSelectedContrat(contrat);
-                        setEditContratOpen(true);
+                        setViewContratOpen(true);
                       }}
-                      className="flex-1"
+                      className="w-full"
                     >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Contrat
+                      <FileText className="h-3 w-3 mr-1" />
+                      Voir le Contrat
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedContrat(contrat);
-                        setDeleteContratOpen(true);
-                      }}
-                      className="hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedLocataire(contrat.locataires);
+                          setEditLocataireOpen(true);
+                        }}
+                        className="flex-1"
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Locataire
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedContrat(contrat);
+                          setEditContratOpen(true);
+                        }}
+                        className="flex-1"
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Contrat
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedContrat(contrat);
+                          setDeleteContratOpen(true);
+                        }}
+                        className="hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -163,6 +179,11 @@ const Locataires = () => {
 
       {selectedContrat && (
         <>
+          <ContratDetailsDialog
+            contrat={selectedContrat}
+            open={viewContratOpen}
+            onOpenChange={setViewContratOpen}
+          />
           <EditContratDialog
             contrat={selectedContrat}
             open={editContratOpen}

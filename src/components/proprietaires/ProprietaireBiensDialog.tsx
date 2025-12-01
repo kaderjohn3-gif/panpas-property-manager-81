@@ -9,7 +9,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, MapPin, Banknote } from "lucide-react";
+import { Building2, MapPin, Banknote, User, Phone, Calendar } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface ProprietaireBiensDialogProps {
   proprietaire: any;
@@ -28,7 +30,15 @@ export const ProprietaireBiensDialog = ({
       if (!proprietaire?.id) return [];
       const { data, error } = await supabase
         .from("biens")
-        .select("*, contrats(id, statut)")
+        .select(`
+          *, 
+          contrats!contrats_bien_id_fkey(
+            id, 
+            statut, 
+            date_debut,
+            locataires(nom, telephone)
+          )
+        `)
         .eq("proprietaire_id", proprietaire.id)
         .order("nom");
       if (error) throw error;
@@ -117,6 +127,34 @@ export const ProprietaireBiensDialog = ({
                     <p className="text-xs text-muted-foreground pt-2 border-t">
                       {bien.description}
                     </p>
+                  )}
+                  
+                  {/* Afficher le locataire si le bien est occupé */}
+                  {bien.contrats?.find((c: any) => c.statut === "actif") && (
+                    <div className="pt-3 border-t space-y-2">
+                      <p className="text-xs font-semibold text-primary">Locataire actuel:</p>
+                      {(() => {
+                        const activeContract = bien.contrats.find((c: any) => c.statut === "actif");
+                        return (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 text-xs">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-medium">{activeContract?.locataires?.nom}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              <span>{activeContract?.locataires?.telephone}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs">
+                              <Calendar className="h-3 w-3 text-muted-foreground" />
+                              <span>
+                                Depuis le {format(new Date(activeContract?.date_debut), "dd/MM/yyyy")}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   )}
                 </CardContent>
               </Card>
