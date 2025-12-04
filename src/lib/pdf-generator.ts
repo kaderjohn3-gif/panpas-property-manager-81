@@ -191,24 +191,24 @@ export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: st
     theme: "grid",
     headStyles: {
       fillColor: [41, 128, 185],
-      fontSize: 6.5,
+      fontSize: 6,
       fontStyle: "bold",
       cellPadding: 2,
     },
     bodyStyles: {
-      fontSize: 6.5,
+      fontSize: 6,
       cellPadding: 2,
     },
     columnStyles: {
-      0: { cellWidth: 70 },
-      1: { cellWidth: 50, halign: 'right' },
+      0: { cellWidth: 65 },
+      1: { cellWidth: 55, halign: 'right' },
     },
     margin: { left: margin, right: margin },
   });
 
   currentY = (doc as any).lastAutoTable.finalY + 3;
 
-  // Next payment due (for rent only) - FIXÉ AU 10 DU MOIS
+  // Next payment due (for rent only) - FIXE AU 10 DU MOIS
   if (paiement.type === "loyer" && paiement.mois_concerne) {
     const nextMonth = new Date(paiement.mois_concerne);
     nextMonth.setMonth(nextMonth.getMonth() + 1);
@@ -217,7 +217,7 @@ export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: st
     doc.setFillColor(240, 248, 255);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 8, "F");
 
-    doc.setFontSize(6);
+    doc.setFontSize(5.5);
     doc.setFont("helvetica", "bold");
     doc.text("Prochain paiement du:", margin + 2, currentY + 3);
 
@@ -231,21 +231,21 @@ export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: st
     currentY += 10;
   }
 
-  // Total Section - Compact
+  // Total Section - More compact with smaller font
   doc.setFillColor(41, 128, 185);
-  doc.rect(margin, currentY, pageWidth - 2 * margin, 9, "F");
+  doc.rect(margin, currentY, pageWidth - 2 * margin, 8, "F");
 
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text("TOTAL PAYE:", margin + 3, currentY + 5.5);
+  doc.text("TOTAL PAYE:", margin + 3, currentY + 5);
 
-  doc.setFontSize(8);
-  doc.text(formatMontant(paiement.montant), pageWidth - margin - 3, currentY + 5.5, {
+  doc.setFontSize(7);
+  doc.text(formatMontant(paiement.montant), pageWidth - margin - 3, currentY + 5, {
     align: "right",
   });
 
-  currentY += 11;
+  currentY += 10;
 
   // Footer - Compact
   doc.setTextColor(100, 100, 100);
