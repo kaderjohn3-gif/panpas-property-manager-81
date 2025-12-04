@@ -24,10 +24,12 @@ interface PaiementData {
   };
 }
 
-// Format number with separators and FCFA - safe encoding
+// Format number with separators and FCFA - simple format for PDF
 const formatMontant = (montant: number): string => {
-  const formatted = new Intl.NumberFormat('fr-FR').format(montant);
-  return formatted + " FCFA";
+  // Use simple string manipulation to avoid special characters in PDF
+  const parts = montant.toString().split('.');
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return intPart + " FCFA";
 };
 
 // Generate receipt number: PANPAS001/MM/YY
