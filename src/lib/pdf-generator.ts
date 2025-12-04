@@ -24,9 +24,21 @@ interface PaiementData {
   };
 }
 
-// Format number with separators and FCFA
+// Format number with separators and FCFA - safe encoding
 const formatMontant = (montant: number): string => {
-  return `${montant.toLocaleString("fr-FR")} FCFA`;
+  const formatted = new Intl.NumberFormat('fr-FR').format(montant);
+  return formatted + " FCFA";
+};
+
+// Generate receipt number: PANPAS001/MM/YY
+const generateReceiptNumber = (paiementId: string, date: string): string => {
+  const d = new Date(date);
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = String(d.getFullYear()).slice(-2);
+  // Use first 3 digits of UUID as sequence
+  const seq = parseInt(paiementId.replace(/-/g, '').slice(0, 6), 16) % 999 + 1;
+  const seqStr = String(seq).padStart(3, '0');
+  return `PANPAS${seqStr}/${month}/${year}`;
 };
 
 export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: string) => {
@@ -82,8 +94,10 @@ export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: st
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
 
+  const receiptNumber = generateReceiptNumber(paiement.id, paiement.date_paiement);
+  
   const details = [
-    { label: "N° Reçu:", value: `#${paiement.id.slice(0, 8).toUpperCase()}` },
+    { label: "N° Reçu:", value: receiptNumber },
     { label: "Date:", value: new Date(paiement.date_paiement).toLocaleDateString("fr-FR") },
     {
       label: "Type:",
@@ -160,7 +174,7 @@ export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: st
   );
   currentY += 5;
 
-  // Payment Details Table - Compact
+  // Payment Details Table - Compact with smaller fonts
   autoTable(doc, {
     startY: currentY,
     head: [["Description", "Montant"]],
@@ -170,64 +184,68 @@ export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: st
           ? `Loyer ${new Date(paiement.mois_concerne).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`
           : paiement.type === "avance"
             ? "Avance sur loyer"
-            : "Dépôt de garantie (Caution)",
+            : "Depot de garantie (Caution)",
         formatMontant(paiement.montant),
       ],
     ],
     theme: "grid",
     headStyles: {
       fillColor: [41, 128, 185],
-      fontSize: 7.5,
+      fontSize: 6.5,
       fontStyle: "bold",
       cellPadding: 2,
     },
     bodyStyles: {
-      fontSize: 7.5,
+      fontSize: 6.5,
       cellPadding: 2,
+    },
+    columnStyles: {
+      0: { cellWidth: 70 },
+      1: { cellWidth: 50, halign: 'right' },
     },
     margin: { left: margin, right: margin },
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 4;
+  currentY = (doc as any).lastAutoTable.finalY + 3;
 
   // Next payment due (for rent only) - FIXÉ AU 10 DU MOIS
   if (paiement.type === "loyer" && paiement.mois_concerne) {
     const nextMonth = new Date(paiement.mois_concerne);
     nextMonth.setMonth(nextMonth.getMonth() + 1);
-    nextMonth.setDate(10); // Fixer la date au 10 du mois
+    nextMonth.setDate(10);
 
     doc.setFillColor(240, 248, 255);
-    doc.rect(margin, currentY, pageWidth - 2 * margin, 10, "F");
+    doc.rect(margin, currentY, pageWidth - 2 * margin, 8, "F");
 
-    doc.setFontSize(7);
+    doc.setFontSize(6);
     doc.setFont("helvetica", "bold");
-    doc.text("Prochain paiement dû:", margin + 2, currentY + 4);
+    doc.text("Prochain paiement du:", margin + 2, currentY + 3);
 
     doc.setFont("helvetica", "normal");
     doc.text(
       `Le 10 ${nextMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`,
       margin + 2,
-      currentY + 7.5,
+      currentY + 6,
     );
 
-    currentY += 12;
+    currentY += 10;
   }
 
   // Total Section - Compact
   doc.setFillColor(41, 128, 185);
-  doc.rect(margin, currentY, pageWidth - 2 * margin, 10, "F");
+  doc.rect(margin, currentY, pageWidth - 2 * margin, 9, "F");
 
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text("TOTAL PAYÉ:", margin + 3, currentY + 6.5);
+  doc.text("TOTAL PAYE:", margin + 3, currentY + 5.5);
 
-  doc.setFontSize(10);
-  doc.text(formatMontant(paiement.montant), pageWidth - margin - 3, currentY + 6.5, {
+  doc.setFontSize(8);
+  doc.text(formatMontant(paiement.montant), pageWidth - margin - 3, currentY + 5.5, {
     align: "right",
   });
 
-  currentY += 12;
+  currentY += 11;
 
   // Footer - Compact
   doc.setTextColor(100, 100, 100);
