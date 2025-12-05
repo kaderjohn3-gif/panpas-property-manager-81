@@ -29,7 +29,7 @@ const Locataires = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contrats")
-        .select("*, locataires(*), biens(nom)")
+        .select("*, locataires(*), biens(*, proprietaires(*))")
         .eq("statut", "actif")
         .order("date_debut", { ascending: false });
       if (error) throw error;

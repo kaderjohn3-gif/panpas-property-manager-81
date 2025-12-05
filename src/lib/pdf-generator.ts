@@ -259,90 +259,112 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
+  const contentWidth = pageWidth - 2 * margin;
   let currentY = margin;
+
+  // Get owner name
+  const proprietaireNom = contrat.biens?.proprietaires?.nom || "Non renseigne";
+  const proprietaireTel = contrat.biens?.proprietaires?.telephone || "";
 
   // Logo
   if (logoBase64) {
     try {
-      doc.addImage(logoBase64, "JPEG", margin, currentY, 20, 20);
+      doc.addImage(logoBase64, "JPEG", margin, currentY, 18, 18);
     } catch (error) {
       console.error("Error adding logo:", error);
     }
   }
 
   // Company Header
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(41, 128, 185);
-  doc.text("AGENCE IMMOBILIERE PANPAS", logoBase64 ? margin + 25 : margin, currentY + 6);
+  doc.text("AGENCE IMMOBILIERE PANPAS", logoBase64 ? margin + 22 : margin, currentY + 5);
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(0, 0, 0);
-  doc.text("Tel: +228 92 18 40 65", logoBase64 ? margin + 25 : margin, currentY + 11);
-  doc.text("www.panpasimmobilier.tech", logoBase64 ? margin + 25 : margin, currentY + 15);
+  doc.setTextColor(80, 80, 80);
+  doc.text("Tel: +228 92 18 40 65", logoBase64 ? margin + 22 : margin, currentY + 10);
+  doc.text("www.panpasimmobilier.tech", logoBase64 ? margin + 22 : margin, currentY + 14);
 
-  currentY += 30;
+  currentY += 25;
+
+  // Decorative line
+  doc.setDrawColor(41, 128, 185);
+  doc.setLineWidth(0.8);
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  currentY += 8;
 
   // Title
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 0, 0);
-  doc.text("CONTRAT DE BAIL A USAGE D'HABITATION", pageWidth / 2, currentY, { align: "center" });
+  const titleType = contrat.biens?.type === "boutique" || contrat.biens?.type === "magasin" 
+    ? "CONTRAT DE BAIL A USAGE COMMERCIAL" 
+    : "CONTRAT DE BAIL A USAGE D'HABITATION";
+  doc.text(titleType, pageWidth / 2, currentY, { align: "center" });
   
-  currentY += 12;
+  currentY += 10;
 
   // ENTRE LES SOUSSIGNES
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("ENTRE LES SOUSSIGNES", margin, currentY);
-  currentY += 8;
-
-  // Bailleur
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("Bailleur:", margin, currentY);
+  doc.setTextColor(41, 128, 185);
+  doc.text("ENTRE LES SOUSSIGNES", margin, currentY);
+  doc.setTextColor(0, 0, 0);
+  currentY += 7;
+
+  // Bailleur Section
+  doc.setFillColor(245, 248, 250);
+  doc.rect(margin, currentY - 2, contentWidth, 14, "F");
+  
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("LE BAILLEUR:", margin + 2, currentY + 3);
   doc.setFont("helvetica", "normal");
-  doc.text(`Mr/Mme ${contrat.biens?.proprietaires?.nom || "Proprietaire"}`, margin + 25, currentY);
-  currentY += 5;
+  doc.text(`Mr/Mme ${proprietaireNom}${proprietaireTel ? " - Tel: " + proprietaireTel : ""}`, margin + 28, currentY + 3);
+  currentY += 7;
   
   doc.setFont("helvetica", "bold");
-  doc.text("Represente par:", margin, currentY);
+  doc.text("Represente par:", margin + 2, currentY + 3);
   doc.setFont("helvetica", "normal");
-  doc.text("L'AGENCE IMMOBILIERE PANPAS - Tel: 92 18 40 65", margin + 30, currentY);
-  currentY += 8;
+  doc.text("L'AGENCE IMMOBILIERE PANPAS - Tel: 92 18 40 65", margin + 32, currentY + 3);
+  currentY += 10;
 
-  // Preneur
+  // Preneur Section
+  doc.setFillColor(250, 245, 240);
+  doc.rect(margin, currentY - 2, contentWidth, 18, "F");
+  
   doc.setFont("helvetica", "bold");
-  doc.text("Preneur:", margin, currentY);
+  doc.text("LE PRENEUR:", margin + 2, currentY + 3);
   doc.setFont("helvetica", "normal");
-  doc.text(`${contrat.locataires?.nom}`, margin + 25, currentY);
-  if (contrat.locataires?.telephone) {
-    doc.text(`Tel: ${contrat.locataires?.telephone}`, margin + 100, currentY);
-  }
-  currentY += 5;
+  const preneurInfo = `${contrat.locataires?.nom || ""}${contrat.locataires?.telephone ? " - Tel: " + contrat.locataires.telephone : ""}`;
+  doc.text(preneurInfo, margin + 28, currentY + 3);
+  currentY += 6;
 
   if (contrat.locataires?.piece_identite) {
     doc.setFont("helvetica", "bold");
-    doc.text("CI du preneur:", margin, currentY);
+    doc.text("Piece d'identite:", margin + 2, currentY + 3);
     doc.setFont("helvetica", "normal");
-    doc.text(contrat.locataires.piece_identite, margin + 30, currentY);
+    doc.text(contrat.locataires.piece_identite, margin + 35, currentY + 3);
     currentY += 5;
   }
 
   if (contrat.locataires?.adresse) {
     doc.setFont("helvetica", "bold");
-    doc.text("Adresse:", margin, currentY);
+    doc.text("Adresse:", margin + 2, currentY + 3);
     doc.setFont("helvetica", "normal");
-    doc.text(contrat.locataires.adresse, margin + 25, currentY);
-    currentY += 5;
+    doc.text(contrat.locataires.adresse, margin + 20, currentY + 3);
   }
+  currentY += 12;
 
-  currentY += 5;
-  doc.setFontSize(9);
+  // Law reference
+  doc.setFontSize(8);
   doc.setFont("helvetica", "italic");
-  doc.text("Loi applicable: Dispositions du Code civil applicables au Togo et autres textes en vigueur.", margin, currentY);
-  currentY += 10;
+  doc.setTextColor(100, 100, 100);
+  doc.text("Conformement aux dispositions du Code civil applicables au Togo.", margin, currentY);
+  doc.setTextColor(0, 0, 0);
+  currentY += 8;
 
   // ARTICLES
   const typeLabels: { [key: string]: string } = {
