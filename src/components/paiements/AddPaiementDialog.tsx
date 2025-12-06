@@ -13,12 +13,14 @@ import { toast } from "sonner";
 export const AddPaiementDialog = () => {
   const [open, setOpen] = useState(false);
   const [contratId, setContratId] = useState("");
-  const [type, setType] = useState<"loyer" | "avance" | "caution">("loyer");
+  const [type, setType] = useState<"loyer" | "avance" | "caution" | "arrieres">("loyer");
   const [montant, setMontant] = useState("");
   const [moisConcerne, setMoisConcerne] = useState(new Date().toISOString().slice(0, 7));
   const [datePaiement, setDatePaiement] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
   const [nombreMoisAvance, setNombreMoisAvance] = useState("1");
+  const [moisArriereDebut, setMoisArriereDebut] = useState("");
+  const [moisArriereFin, setMoisArriereFin] = useState("");
   const queryClient = useQueryClient();
 
   const { data: contratsActifs } = useQuery({
@@ -54,7 +56,7 @@ export const AddPaiementDialog = () => {
 
   // Calculer le prochain mois à payer en fonction des avances existantes
   useEffect(() => {
-    if (selectedContrat && paiementsExistants && type === "loyer") {
+    if (selectedContrat && paiementsExistants && (type === "loyer" || type === "arrieres")) {
       // Trouver le dernier mois payé (loyer ou avance)
       const paiementsLoyer = paiementsExistants.filter(p => 
         (p.type === "loyer" || p.type === "avance") && p.mois_concerne
@@ -79,6 +81,18 @@ export const AddPaiementDialog = () => {
       setMontant(selectedContrat.loyer_mensuel.toString());
     }
   }, [selectedContrat, paiementsExistants, type]);
+
+  // Calculer le montant pour les arriérés
+  useEffect(() => {
+    if (selectedContrat && type === "arrieres" && moisArriereDebut && moisArriereFin) {
+      const debut = new Date(`${moisArriereDebut}-01`);
+      const fin = new Date(`${moisArriereFin}-01`);
+      const moisDiff = (fin.getFullYear() - debut.getFullYear()) * 12 + (fin.getMonth() - debut.getMonth()) + 1;
+      if (moisDiff > 0) {
+        setMontant((selectedContrat.loyer_mensuel * moisDiff).toString());
+      }
+    }
+  }, [moisArriereDebut, moisArriereFin, selectedContrat, type]);
 
   // Mettre à jour le montant pour les avances
   useEffect(() => {
@@ -132,6 +146,34 @@ export const AddPaiementDialog = () => {
 
         const { error } = await supabase.from("paiements").insert(paiements);
         if (error) throw error;
+      } else if (type === "arrieres") {
+        // Pour les arriérés, créer un paiement pour chaque mois de la période
+        if (!moisArriereDebut || !moisArriereFin) {
+          throw new Error("Veuillez sélectionner la période des arriérés");
+        }
+
+        const debut = new Date(`${moisArriereDebut}-01`);
+        const fin = new Date(`${moisArriereFin}-01`);
+        const paiements = [];
+        
+        let moisCourant = new Date(debut);
+        while (moisCourant <= fin) {
+          paiements.push({
+            contrat_id: contratId,
+            locataire_id: selectedContrat.locataire_id,
+            bien_id: selectedContrat.bien_id,
+            montant: selectedContrat.loyer_mensuel,
+            type: "loyer" as const,
+            mois_concerne: moisCourant.toISOString().slice(0, 10),
+            date_paiement: datePaiement,
+            notes: `Arriéré${notes ? ` - ${notes}` : ""}`,
+            statut: "paye" as const,
+          });
+          moisCourant.setMonth(moisCourant.getMonth() + 1);
+        }
+
+        const { error } = await supabase.from("paiements").insert(paiements);
+        if (error) throw error;
       } else {
         // Loyer ou caution - comportement normal
         const { error } = await supabase.from("paiements").insert({
@@ -139,7 +181,7 @@ export const AddPaiementDialog = () => {
           locataire_id: selectedContrat.locataire_id,
           bien_id: selectedContrat.bien_id,
           montant: parseFloat(montant),
-          type,
+          type: type,
           mois_concerne: type === "loyer" ? `${moisConcerne}-01` : null,
           date_paiement: datePaiement,
           notes: notes || null,
@@ -171,6 +213,8 @@ export const AddPaiementDialog = () => {
     setDatePaiement(new Date().toISOString().split("T")[0]);
     setNotes("");
     setNombreMoisAvance("1");
+    setMoisArriereDebut("");
+    setMoisArriereFin("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -241,11 +285,47 @@ export const AddPaiementDialog = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="loyer">Loyer</SelectItem>
+                <SelectItem value="arrieres">Arriérés (mois impayés)</SelectItem>
                 <SelectItem value="avance">Avance (plusieurs mois)</SelectItem>
                 <SelectItem value="caution">Caution</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {type === "arrieres" && (
+            <div className="space-y-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+              <p className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                Sélectionnez la période des arriérés à régulariser
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="moisDebut">Du mois</Label>
+                  <Input
+                    id="moisDebut"
+                    type="month"
+                    value={moisArriereDebut}
+                    onChange={(e) => setMoisArriereDebut(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="moisFin">Au mois</Label>
+                  <Input
+                    id="moisFin"
+                    type="month"
+                    value={moisArriereFin}
+                    onChange={(e) => setMoisArriereFin(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              {selectedContrat && moisArriereDebut && moisArriereFin && (
+                <p className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                  Total arriérés: {montant ? parseInt(montant).toLocaleString() : 0} FCFA
+                </p>
+              )}
+            </div>
+          )}
 
           {type === "avance" && (
             <div className="space-y-2">
@@ -292,7 +372,7 @@ export const AddPaiementDialog = () => {
               value={montant}
               onChange={(e) => setMontant(e.target.value)}
               required
-              disabled={type === "avance"}
+              disabled={type === "avance" || type === "arrieres"}
             />
           </div>
 

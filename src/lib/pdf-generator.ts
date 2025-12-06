@@ -248,7 +248,7 @@ export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: st
   doc.save(`Recu_${paiement.locataire.nom.replace(/\s+/g, "_")}_${new Date(paiement.date_paiement).toISOString().split("T")[0]}.pdf`);
 };
 
-// Generate Professional Contract PDF - Format PANPAS
+// Generate Professional Contract PDF - Format PANPAS with proper pagination
 export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -260,11 +260,32 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
   const contentWidth = pageWidth - 2 * margin;
+  const maxY = pageHeight - 25; // Leave space for footer
   let currentY = margin;
 
   // Get owner name
   const proprietaireNom = contrat.biens?.proprietaires?.nom || "Non renseigne";
   const proprietaireTel = contrat.biens?.proprietaires?.telephone || "";
+
+  // Helper function to check and add new page if needed
+  const checkNewPage = (neededSpace: number = 15) => {
+    if (currentY + neededSpace > maxY) {
+      // Add footer to current page
+      addPageFooter();
+      doc.addPage();
+      currentY = margin;
+      return true;
+    }
+    return false;
+  };
+
+  // Helper function to add footer
+  const addPageFooter = () => {
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Document genere le ${new Date().toLocaleDateString("fr-FR")} par PANPAS IMMOBILIER`, pageWidth / 2, pageHeight - 8, { align: "center" });
+    doc.setTextColor(0, 0, 0);
+  };
 
   // Logo
   if (logoBase64) {
@@ -287,13 +308,13 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   doc.text("Tel: +228 92 18 40 65", logoBase64 ? margin + 22 : margin, currentY + 10);
   doc.text("www.panpasimmobilier.tech", logoBase64 ? margin + 22 : margin, currentY + 14);
 
-  currentY += 25;
+  currentY += 22;
 
   // Decorative line
   doc.setDrawColor(41, 128, 185);
   doc.setLineWidth(0.8);
   doc.line(margin, currentY, pageWidth - margin, currentY);
-  currentY += 8;
+  currentY += 6;
 
   // Title
   doc.setFontSize(14);
@@ -304,7 +325,7 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
     : "CONTRAT DE BAIL A USAGE D'HABITATION";
   doc.text(titleType, pageWidth / 2, currentY, { align: "center" });
   
-  currentY += 10;
+  currentY += 8;
 
   // ENTRE LES SOUSSIGNES
   doc.setFontSize(10);
@@ -312,35 +333,35 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   doc.setTextColor(41, 128, 185);
   doc.text("ENTRE LES SOUSSIGNES", margin, currentY);
   doc.setTextColor(0, 0, 0);
-  currentY += 7;
+  currentY += 6;
 
   // Bailleur Section
   doc.setFillColor(245, 248, 250);
-  doc.rect(margin, currentY - 2, contentWidth, 14, "F");
+  doc.rect(margin, currentY - 2, contentWidth, 12, "F");
   
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.text("LE BAILLEUR:", margin + 2, currentY + 3);
   doc.setFont("helvetica", "normal");
   doc.text(`Mr/Mme ${proprietaireNom}${proprietaireTel ? " - Tel: " + proprietaireTel : ""}`, margin + 28, currentY + 3);
-  currentY += 7;
+  currentY += 6;
   
   doc.setFont("helvetica", "bold");
   doc.text("Represente par:", margin + 2, currentY + 3);
   doc.setFont("helvetica", "normal");
   doc.text("L'AGENCE IMMOBILIERE PANPAS - Tel: 92 18 40 65", margin + 32, currentY + 3);
-  currentY += 10;
+  currentY += 9;
 
   // Preneur Section
   doc.setFillColor(250, 245, 240);
-  doc.rect(margin, currentY - 2, contentWidth, 18, "F");
+  doc.rect(margin, currentY - 2, contentWidth, 16, "F");
   
   doc.setFont("helvetica", "bold");
   doc.text("LE PRENEUR:", margin + 2, currentY + 3);
   doc.setFont("helvetica", "normal");
   const preneurInfo = `${contrat.locataires?.nom || ""}${contrat.locataires?.telephone ? " - Tel: " + contrat.locataires.telephone : ""}`;
   doc.text(preneurInfo, margin + 28, currentY + 3);
-  currentY += 6;
+  currentY += 5;
 
   if (contrat.locataires?.piece_identite) {
     doc.setFont("helvetica", "bold");
@@ -356,7 +377,7 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
     doc.setFont("helvetica", "normal");
     doc.text(contrat.locataires.adresse, margin + 20, currentY + 3);
   }
-  currentY += 12;
+  currentY += 10;
 
   // Law reference
   doc.setFontSize(8);
@@ -376,21 +397,24 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   const typeBien = typeLabels[contrat.biens?.type] || contrat.biens?.type;
 
   // Article 1
+  checkNewPage(25);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("ARTICLE 1: Designation", margin, currentY);
-  currentY += 6;
+  currentY += 5;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text(`${typeBien} - ${contrat.biens?.nom}`, margin + 5, currentY);
-  doc.text(`Adresse: ${contrat.biens?.adresse}`, margin + 5, currentY + 5);
-  currentY += 12;
+  currentY += 5;
+  doc.text(`Adresse: ${contrat.biens?.adresse}`, margin + 5, currentY);
+  currentY += 10;
 
   // Article 2
+  checkNewPage(20);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("ARTICLE 2: Objet", margin, currentY);
-  currentY += 6;
+  currentY += 5;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   const usage = contrat.biens?.type === "boutique" || contrat.biens?.type === "magasin" ? "Usage commercial" : "Usage d'habitation";
@@ -398,10 +422,11 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   currentY += 10;
 
   // Article 3
+  checkNewPage(30);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("ARTICLE 3: Etat des lieux", margin, currentY);
-  currentY += 6;
+  currentY += 5;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("a- Etat des locaux: interieur en bon etat de fonctionnement.", margin + 5, currentY);
@@ -412,10 +437,11 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   currentY += 10;
 
   // Article 4
+  checkNewPage(25);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("ARTICLE 4: Duree et prise d'effet", margin, currentY);
-  currentY += 6;
+  currentY += 5;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   const duree = contrat.date_fin ? `Du ${new Date(contrat.date_debut).toLocaleDateString("fr-FR")} au ${new Date(contrat.date_fin).toLocaleDateString("fr-FR")}` : "Duree indeterminee";
@@ -425,10 +451,11 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   currentY += 10;
 
   // Article 5 - Conditions financieres
+  checkNewPage(35);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("ARTICLE 5: Conditions financieres", margin, currentY);
-  currentY += 6;
+  currentY += 5;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text(`a- Loyer mensuel: ${formatMontant(contrat.loyer_mensuel)}`, margin + 5, currentY);
@@ -443,10 +470,11 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   currentY += 10;
 
   // Article 6
+  checkNewPage(35);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("ARTICLE 6: Obligations du preneur", margin, currentY);
-  currentY += 6;
+  currentY += 5;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   const obligations = [
@@ -456,16 +484,18 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
     "- Ne pas sous-louer sans accord ecrit du bailleur"
   ];
   obligations.forEach((o) => {
+    checkNewPage(8);
     doc.text(o, margin + 5, currentY);
-    currentY += 4.5;
+    currentY += 5;
   });
   currentY += 5;
 
   // Article 7
+  checkNewPage(25);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("ARTICLE 7: Resiliation et preavis", margin, currentY);
-  currentY += 6;
+  currentY += 5;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("La resiliation de ce bail par une partie est obligatoirement precedee d'un preavis de 3 mois.", margin + 5, currentY);
@@ -474,28 +504,32 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   currentY += 10;
 
   // Article 8
+  checkNewPage(30);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("ARTICLE 8: Fin du bail", margin, currentY);
-  currentY += 6;
+  currentY += 5;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("A la fin du bail, le preneur s'engage a:", margin + 5, currentY);
   currentY += 5;
   doc.text("- Remettre les locaux dans l'etat initial", margin + 5, currentY);
-  currentY += 4.5;
+  currentY += 5;
   doc.text("- Restituer toutes les cles", margin + 5, currentY);
-  currentY += 4.5;
+  currentY += 5;
   doc.text("- La caution sera restituee apres verification de l'etat des lieux", margin + 5, currentY);
   currentY += 15;
 
-  // Date and Signatures
+  // Signatures section - check if we need new page for signatures
+  checkNewPage(50);
+  
+  // Date
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text(`Fait a Kara, le ${new Date(contrat.date_debut).toLocaleDateString("fr-FR")}`, margin, currentY);
   currentY += 10;
 
-  // Signatures section
+  // Signatures
   doc.setFont("helvetica", "bold");
   doc.text("LE PRENEUR", margin + 15, currentY);
   doc.text("BAILLEUR", pageWidth - margin - 40, currentY);
@@ -506,33 +540,40 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   doc.text("AGENCE IMMOBILIERE PANPAS", pageWidth - margin - 55, currentY);
   
   // Signature lines
+  doc.setDrawColor(0, 0, 0);
   doc.line(margin, currentY + 15, margin + 60, currentY + 15);
   doc.line(pageWidth - margin - 60, currentY + 15, pageWidth - margin, currentY + 15);
 
-  // FIN DU BAIL section at bottom
-  currentY = pageHeight - 45;
+  currentY += 25;
+
+  // FIN DU BAIL section - check if enough space or add new page
+  if (currentY + 40 > maxY) {
+    addPageFooter();
+    doc.addPage();
+    currentY = margin;
+  }
+
   doc.setDrawColor(0, 0, 0);
-  doc.rect(margin, currentY, pageWidth - 2 * margin, 35);
+  doc.setLineWidth(0.5);
+  doc.rect(margin, currentY, contentWidth, 35);
   
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("FIN DU BAIL", pageWidth / 2, currentY + 5, { align: "center" });
+  doc.text("FIN DU BAIL", pageWidth / 2, currentY + 6, { align: "center" });
   
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("Liquidation:", margin + 5, currentY + 12);
-  doc.text("Montant restant apres liquidation:", pageWidth / 2 + 5, currentY + 12);
-  doc.text("Date de reprise des cles:", margin + 5, currentY + 20);
-  doc.text("Reserves:", pageWidth / 2 + 5, currentY + 20);
+  doc.text("Liquidation:", margin + 5, currentY + 14);
+  doc.text("Montant restant apres liquidation:", pageWidth / 2 + 5, currentY + 14);
+  doc.text("Date de reprise des cles:", margin + 5, currentY + 22);
+  doc.text("Reserves:", pageWidth / 2 + 5, currentY + 22);
   
-  doc.text("LOCATAIRE", margin + 20, currentY + 28);
-  doc.text("Signature", pageWidth / 2 - 5, currentY + 28);
-  doc.text("BAILLEUR", pageWidth - margin - 30, currentY + 28);
+  doc.text("LOCATAIRE", margin + 20, currentY + 30);
+  doc.text("Signature", pageWidth / 2, currentY + 30, { align: "center" });
+  doc.text("BAILLEUR", pageWidth - margin - 30, currentY + 30);
 
-  // Footer
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Document genere le ${new Date().toLocaleDateString("fr-FR")} par PANPAS IMMOBILIER`, pageWidth / 2, pageHeight - 5, { align: "center" });
+  // Add footer to last page
+  addPageFooter();
 
   // Save
   doc.save(`Contrat_${contrat.locataires?.nom.replace(/\s+/g, "_")}_${contrat.biens?.nom.replace(/\s+/g, "_")}.pdf`);
