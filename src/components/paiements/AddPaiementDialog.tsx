@@ -18,7 +18,7 @@ export const AddPaiementDialog = () => {
   const [moisConcerne, setMoisConcerne] = useState(new Date().toISOString().slice(0, 7));
   const [datePaiement, setDatePaiement] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
-  const [nombreMoisAvance, setNombreMoisAvance] = useState("1");
+  const [nombreMois, setNombreMois] = useState("1");
   const [moisArriereDebut, setMoisArriereDebut] = useState("");
   const [moisArriereFin, setMoisArriereFin] = useState("");
   const queryClient = useQueryClient();
@@ -54,9 +54,9 @@ export const AddPaiementDialog = () => {
 
   const selectedContrat = contratsActifs?.find((c) => c.id === contratId);
 
-  // Calculer le prochain mois à payer en fonction des avances existantes
+  // Calculer le prochain mois à payer en fonction des paiements existants
   useEffect(() => {
-    if (selectedContrat && paiementsExistants && (type === "loyer" || type === "arrieres")) {
+    if (selectedContrat && paiementsExistants && (type === "loyer" || type === "avance")) {
       // Trouver le dernier mois payé (loyer ou avance)
       const paiementsLoyer = paiementsExistants.filter(p => 
         (p.type === "loyer" || p.type === "avance") && p.mois_concerne
@@ -77,10 +77,16 @@ export const AddPaiementDialog = () => {
         const dateDebut = new Date(selectedContrat.date_debut);
         setMoisConcerne(dateDebut.toISOString().slice(0, 7));
       }
-      
-      setMontant(selectedContrat.loyer_mensuel.toString());
     }
   }, [selectedContrat, paiementsExistants, type]);
+
+  // Calculer le montant en fonction du nombre de mois (loyer ou avance)
+  useEffect(() => {
+    if (selectedContrat && (type === "loyer" || type === "avance")) {
+      const mois = parseInt(nombreMois) || 1;
+      setMontant((selectedContrat.loyer_mensuel * mois).toString());
+    }
+  }, [nombreMois, selectedContrat, type]);
 
   // Calculer le montant pour les arriérés
   useEffect(() => {
@@ -94,40 +100,19 @@ export const AddPaiementDialog = () => {
     }
   }, [moisArriereDebut, moisArriereFin, selectedContrat, type]);
 
-  // Mettre à jour le montant pour les avances
-  useEffect(() => {
-    if (selectedContrat && type === "avance") {
-      const mois = parseInt(nombreMoisAvance) || 1;
-      setMontant((selectedContrat.loyer_mensuel * mois).toString());
-    }
-  }, [nombreMoisAvance, selectedContrat, type]);
 
   const addMutation = useMutation({
     mutationFn: async () => {
       if (!selectedContrat) return;
 
-      if (type === "avance") {
-        // Pour les avances, créer plusieurs paiements (un par mois)
-        const mois = parseInt(nombreMoisAvance) || 1;
-        const paiements = [];
-        
-        // Trouver le dernier mois payé pour commencer après
-        const paiementsLoyer = paiementsExistants?.filter(p => 
-          (p.type === "loyer" || p.type === "avance") && p.mois_concerne
-        ) || [];
-        
-        let moisDepart = new Date();
-        if (paiementsLoyer.length > 0) {
-          const dernierPaiement = paiementsLoyer.sort((a, b) => 
-            new Date(b.mois_concerne!).getTime() - new Date(a.mois_concerne!).getTime()
-          )[0];
-          moisDepart = new Date(dernierPaiement.mois_concerne!);
-          moisDepart.setMonth(moisDepart.getMonth() + 1);
-        } else {
-          moisDepart = new Date(selectedContrat.date_debut);
-        }
+      const nbMois = parseInt(nombreMois) || 1;
 
-        for (let i = 0; i < mois; i++) {
+      if (type === "loyer" || type === "avance") {
+        // Pour loyer et avance, créer plusieurs paiements si nbMois > 1
+        const paiements = [];
+        const moisDepart = new Date(`${moisConcerne}-01`);
+
+        for (let i = 0; i < nbMois; i++) {
           const moisCourant = new Date(moisDepart);
           moisCourant.setMonth(moisCourant.getMonth() + i);
           
@@ -136,10 +121,12 @@ export const AddPaiementDialog = () => {
             locataire_id: selectedContrat.locataire_id,
             bien_id: selectedContrat.bien_id,
             montant: selectedContrat.loyer_mensuel,
-            type: "avance" as const,
+            type: type,
             mois_concerne: moisCourant.toISOString().slice(0, 10),
             date_paiement: datePaiement,
-            notes: `Avance ${i + 1}/${mois} mois${notes ? ` - ${notes}` : ""}`,
+            notes: nbMois > 1 
+              ? `${type === "avance" ? "Avance" : "Loyer"} ${i + 1}/${nbMois} mois${notes ? ` - ${notes}` : ""}`
+              : notes || null,
             statut: "paye" as const,
           });
         }
@@ -175,14 +162,14 @@ export const AddPaiementDialog = () => {
         const { error } = await supabase.from("paiements").insert(paiements);
         if (error) throw error;
       } else {
-        // Loyer ou caution - comportement normal
+        // Caution - comportement normal
         const { error } = await supabase.from("paiements").insert({
           contrat_id: contratId,
           locataire_id: selectedContrat.locataire_id,
           bien_id: selectedContrat.bien_id,
           montant: parseFloat(montant),
           type: type,
-          mois_concerne: type === "loyer" ? `${moisConcerne}-01` : null,
+          mois_concerne: null,
           date_paiement: datePaiement,
           notes: notes || null,
           statut: "paye",
@@ -193,8 +180,9 @@ export const AddPaiementDialog = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["paiements"] });
       queryClient.invalidateQueries({ queryKey: ["paiements-contrat"] });
-      toast.success(type === "avance" 
-        ? `Avance de ${nombreMoisAvance} mois enregistrée avec succès`
+      const nbMois = parseInt(nombreMois) || 1;
+      toast.success(nbMois > 1 
+        ? `Paiement de ${nbMois} mois enregistré avec succès`
         : "Paiement enregistré avec succès"
       );
       setOpen(false);
@@ -212,7 +200,7 @@ export const AddPaiementDialog = () => {
     setMoisConcerne(new Date().toISOString().slice(0, 7));
     setDatePaiement(new Date().toISOString().split("T")[0]);
     setNotes("");
-    setNombreMoisAvance("1");
+    setNombreMois("1");
     setMoisArriereDebut("");
     setMoisArriereFin("");
   };
@@ -327,44 +315,56 @@ export const AddPaiementDialog = () => {
             </div>
           )}
 
-          {type === "avance" && (
-            <div className="space-y-2">
-              <Label htmlFor="nombreMois">Nombre de mois d'avance *</Label>
-              <Select value={nombreMoisAvance} onValueChange={setNombreMoisAvance}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
-                    <SelectItem key={n} value={n.toString()}>
-                      {n} mois
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedContrat && (
-                <p className="text-xs text-muted-foreground">
-                  Total: {(selectedContrat.loyer_mensuel * parseInt(nombreMoisAvance || "1")).toLocaleString()} FCFA
-                </p>
+          {(type === "loyer" || type === "avance") && (
+            <div className="space-y-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="space-y-2">
+                <Label htmlFor="mois">Mois de départ *</Label>
+                <Input
+                  id="mois"
+                  type="month"
+                  value={moisConcerne}
+                  onChange={(e) => setMoisConcerne(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="nombreMois">Nombre de mois à payer *</Label>
+                <Select value={nombreMois} onValueChange={setNombreMois}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                      <SelectItem key={n} value={n.toString()}>
+                        {n} mois
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedContrat && parseInt(nombreMois) > 1 && (
+                <div className="text-sm bg-background p-2 rounded border">
+                  <p className="font-medium text-primary">
+                    Période: {new Date(`${moisConcerne}-01`).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+                    {" → "}
+                    {(() => {
+                      const fin = new Date(`${moisConcerne}-01`);
+                      fin.setMonth(fin.getMonth() + parseInt(nombreMois) - 1);
+                      return fin.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+                    })()}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Total: {(selectedContrat.loyer_mensuel * parseInt(nombreMois)).toLocaleString()} FCFA
+                  </p>
+                </div>
               )}
             </div>
           )}
 
-          {type === "loyer" && (
-            <div className="space-y-2">
-              <Label htmlFor="mois">Mois concerne *</Label>
-              <Input
-                id="mois"
-                type="month"
-                value={moisConcerne}
-                onChange={(e) => setMoisConcerne(e.target.value)}
-                required
-              />
-            </div>
-          )}
-
           <div className="space-y-2">
-            <Label htmlFor="montant">Montant (FCFA) *</Label>
+            <Label htmlFor="montant">Montant total (FCFA) *</Label>
             <Input
               id="montant"
               type="number"
@@ -372,7 +372,8 @@ export const AddPaiementDialog = () => {
               value={montant}
               onChange={(e) => setMontant(e.target.value)}
               required
-              disabled={type === "avance" || type === "arrieres"}
+              disabled={type === "loyer" || type === "avance" || type === "arrieres"}
+              className="font-semibold"
             />
           </div>
 
