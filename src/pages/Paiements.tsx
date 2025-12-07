@@ -39,17 +39,40 @@ const Paiements = () => {
 
   const handlePrintReceipt = async (paiement: any) => {
     try {
-      toast.loading("Génération du reçu PDF...");
+      toast.loading("Génération de la facture PDF...");
       
       // Convert logo to base64
       const logoBase64 = await imageToBase64(logo);
+      
+      // Calculer le nombre de mois et les détails
+      const loyerMensuel = parseFloat(paiement.contrats?.loyer_mensuel?.toString() || "0");
+      const montant = parseFloat(paiement.montant.toString());
+      let nombreMois = 1;
+      let moisDetails: { mois: string; montant: number }[] = [];
+      
+      if ((paiement.type === "loyer" || paiement.type === "avance" || paiement.type === "arrieres") && loyerMensuel > 0) {
+        nombreMois = Math.round(montant / loyerMensuel);
+        
+        // Générer les détails pour chaque mois
+        if (paiement.mois_concerne && nombreMois > 0) {
+          const startDate = new Date(paiement.mois_concerne);
+          for (let i = 0; i < nombreMois; i++) {
+            const moisDate = new Date(startDate);
+            moisDate.setMonth(moisDate.getMonth() + i);
+            moisDetails.push({
+              mois: moisDate.toISOString().slice(0, 7) + "-01",
+              montant: loyerMensuel
+            });
+          }
+        }
+      }
       
       // Generate PDF
       await generateReceiptPDF(
         {
           id: paiement.id,
           date_paiement: paiement.date_paiement,
-          montant: parseFloat(paiement.montant.toString()),
+          montant: montant,
           type: paiement.type,
           mois_concerne: paiement.mois_concerne,
           notes: paiement.notes,
@@ -65,14 +88,16 @@ const Paiements = () => {
             type: paiement.biens?.type || "maison",
           },
           contrat: {
-            loyer_mensuel: parseFloat(paiement.contrats?.loyer_mensuel?.toString() || "0"),
+            loyer_mensuel: loyerMensuel,
           },
+          nombreMois: nombreMois,
+          moisDetails: moisDetails.length > 0 ? moisDetails : undefined,
         },
         logoBase64
       );
       
       toast.dismiss();
-      toast.success("Reçu généré avec succès !");
+      toast.success("Facture générée avec succès !");
     } catch (error: any) {
       toast.dismiss();
       toast.error(`Erreur lors de la génération: ${error.message}`);
