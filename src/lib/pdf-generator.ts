@@ -44,7 +44,8 @@ interface PaiementData {
   contrat: {
     loyer_mensuel: number;
   };
-  nombreMois?: number; // Nombre de mois pour avance
+  nombreMois?: number;
+  moisDetails?: { mois: string; montant: number }[]; // Détails pour multi-mois
 }
 
 // Format number with separators and FCFA - simple format for PDF
@@ -65,187 +66,272 @@ const generateReceiptNumber = (paiementId: string, date: string): string => {
 };
 
 export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: string) => {
-  // Format demi-page A4 (A6) pour imprimer 2 recus par page
+  // Format A5 portrait pour reçus professionnels
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
-    format: [148, 105],
+    format: "a5", // 148 x 210 mm
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 6;
+  const margin = 10;
 
   let currentY = margin;
   
   // Logo
   if (logoBase64) {
     try {
-      doc.addImage(logoBase64, "JPEG", margin, currentY, 12, 12);
+      doc.addImage(logoBase64, "JPEG", margin, currentY, 18, 18);
     } catch (error) {
       console.error("Error adding logo:", error);
     }
   }
 
   // Company Header
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("PANPAS IMMOBILIER", logoBase64 ? margin + 14 : margin, currentY + 4);
-
-  doc.setFontSize(6);
-  doc.setFont("helvetica", "normal");
-  doc.text("Gestion Immobiliere Professionnelle", logoBase64 ? margin + 14 : margin, currentY + 8);
-  doc.text("Tel: +228 92 18 40 65", logoBase64 ? margin + 14 : margin, currentY + 11);
-
-  // Receipt Title
-  currentY += 16;
-  doc.setFontSize(11);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(41, 128, 185);
-  doc.text("RECU DE PAIEMENT", pageWidth / 2, currentY, { align: "center" });
+  doc.text("PANPAS IMMOBILIER", logoBase64 ? margin + 22 : margin, currentY + 6);
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80, 80, 80);
+  doc.text("Gestion Immobiliere Professionnelle", logoBase64 ? margin + 22 : margin, currentY + 11);
+  doc.text("Tel: +228 92 18 40 65 | www.panpasimmobilier.tech", logoBase64 ? margin + 22 : margin, currentY + 15);
+
+  // Decorative line
+  currentY += 22;
+  doc.setDrawColor(41, 128, 185);
+  doc.setLineWidth(0.8);
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  currentY += 6;
+
+  // Receipt Title
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(41, 128, 185);
+  doc.text("FACTURE / RECU DE PAIEMENT", pageWidth / 2, currentY, { align: "center" });
   doc.setTextColor(0, 0, 0);
 
-  // Receipt Number and Date on same line
-  currentY += 5;
-  doc.setFontSize(6);
+  // Receipt Number and Date
+  currentY += 8;
+  doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   const receiptNumber = generateReceiptNumber(paiement.id, paiement.date_paiement);
-  doc.text(`N: ${receiptNumber}`, margin, currentY);
+  doc.text(`N°: ${receiptNumber}`, margin, currentY);
   doc.text(`Date: ${new Date(paiement.date_paiement).toLocaleDateString("fr-FR")}`, pageWidth - margin, currentY, { align: "right" });
 
-  // Separator
-  currentY += 2;
+  currentY += 8;
+
+  // Client Info Box
+  doc.setFillColor(245, 248, 250);
+  doc.rect(margin, currentY, pageWidth - 2 * margin, 22, "F");
   doc.setDrawColor(200, 200, 200);
-  doc.line(margin, currentY, pageWidth - margin, currentY);
-  currentY += 3;
+  doc.rect(margin, currentY, pageWidth - 2 * margin, 22);
 
-  // Tenant and Property Info - Compact
-  doc.setFontSize(6);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text("Locataire:", margin, currentY);
+  doc.text("LOCATAIRE", margin + 3, currentY + 5);
   doc.setFont("helvetica", "normal");
-  doc.text(paiement.locataire.nom, margin + 18, currentY);
-  doc.text(`Tel: ${paiement.locataire.telephone}`, pageWidth / 2 + 5, currentY);
-  
-  currentY += 4;
+  doc.text(paiement.locataire.nom, margin + 3, currentY + 10);
+  doc.text(`Tel: ${paiement.locataire.telephone}`, margin + 3, currentY + 15);
+  if (paiement.locataire.adresse) {
+    doc.text(paiement.locataire.adresse, margin + 3, currentY + 20);
+  }
+
   doc.setFont("helvetica", "bold");
-  doc.text("Bien:", margin, currentY);
+  doc.text("BIEN", pageWidth / 2 + 5, currentY + 5);
   doc.setFont("helvetica", "normal");
-  doc.text(`${paiement.bien.nom} - ${paiement.bien.adresse}`, margin + 18, currentY);
+  doc.text(paiement.bien.nom, pageWidth / 2 + 5, currentY + 10);
+  doc.text(paiement.bien.adresse, pageWidth / 2 + 5, currentY + 15);
 
-  currentY += 5;
+  currentY += 28;
 
-  // Payment Type Label
+  // Payment Type Header
   const typeLabels: { [key: string]: string } = {
-    loyer: "LOYER",
+    loyer: "PAIEMENT DE LOYER",
     avance: "AVANCE SUR LOYER",
-    caution: "DEPOT DE GARANTIE (CAUTION)"
+    caution: "DEPOT DE GARANTIE",
+    arrieres: "ARRIERES DE LOYER"
   };
   
-  // Determine number of months for avance
-  let nombreMois = 1;
-  if (paiement.type === "avance" && paiement.contrat?.loyer_mensuel > 0) {
+  doc.setFillColor(41, 128, 185);
+  doc.rect(margin, currentY, pageWidth - 2 * margin, 8, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(typeLabels[paiement.type] || "PAIEMENT", pageWidth / 2, currentY + 5.5, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+
+  currentY += 12;
+
+  // Determine number of months
+  let nombreMois = paiement.nombreMois || 1;
+  if (!paiement.nombreMois && paiement.contrat?.loyer_mensuel > 0) {
     nombreMois = Math.round(paiement.montant / paiement.contrat.loyer_mensuel);
   }
 
-  // Payment Details Table
+  // Tableau dynamique des détails de paiement
+  const tableHead = [["Description", "Periode", "Montant"]];
   const tableData: string[][] = [];
-  
-  if (paiement.type === "loyer") {
-    const moisLabel = paiement.mois_concerne 
-      ? new Date(paiement.mois_concerne).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
-      : "-";
-    tableData.push(["Type de paiement", "LOYER MENSUEL"]);
-    tableData.push(["Mois concerne", moisLabel]);
-    tableData.push(["Loyer mensuel", formatMontant(paiement.contrat.loyer_mensuel)]);
-    tableData.push(["Montant paye", formatMontant(paiement.montant)]);
-  } else if (paiement.type === "avance") {
-    tableData.push(["Type de paiement", "AVANCE SUR LOYER"]);
-    tableData.push(["Nombre de mois", `${nombreMois} mois`]);
-    tableData.push(["Loyer mensuel", formatMontant(paiement.contrat.loyer_mensuel)]);
-    tableData.push(["Montant total avance", formatMontant(paiement.montant)]);
+
+  if (paiement.type === "loyer" || paiement.type === "avance" || paiement.type === "arrieres") {
+    // Si on a les détails des mois
+    if (paiement.moisDetails && paiement.moisDetails.length > 0) {
+      paiement.moisDetails.forEach((detail, index) => {
+        const moisLabel = new Date(detail.mois).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+        tableData.push([
+          `Loyer mois ${index + 1}`,
+          moisLabel.charAt(0).toUpperCase() + moisLabel.slice(1),
+          formatMontant(detail.montant)
+        ]);
+      });
+    } else if (paiement.mois_concerne && nombreMois > 1) {
+      // Multi-mois sans détails explicites
+      const startDate = new Date(paiement.mois_concerne);
+      for (let i = 0; i < nombreMois; i++) {
+        const moisDate = new Date(startDate);
+        moisDate.setMonth(moisDate.getMonth() + i);
+        const moisLabel = moisDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+        tableData.push([
+          `Loyer mois ${i + 1}`,
+          moisLabel.charAt(0).toUpperCase() + moisLabel.slice(1),
+          formatMontant(paiement.contrat.loyer_mensuel)
+        ]);
+      }
+    } else {
+      // Paiement simple
+      const moisLabel = paiement.mois_concerne 
+        ? new Date(paiement.mois_concerne).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+        : "-";
+      tableData.push([
+        "Loyer mensuel",
+        moisLabel.charAt(0).toUpperCase() + moisLabel.slice(1),
+        formatMontant(paiement.montant)
+      ]);
+    }
   } else if (paiement.type === "caution") {
-    tableData.push(["Type de paiement", "DEPOT DE GARANTIE"]);
-    tableData.push(["Description", "Caution remboursable"]);
-    tableData.push(["Montant caution", formatMontant(paiement.montant)]);
+    tableData.push([
+      "Depot de garantie",
+      "Remboursable en fin de bail",
+      formatMontant(paiement.montant)
+    ]);
   }
 
   autoTable(doc, {
     startY: currentY,
+    head: tableHead,
     body: tableData,
-    theme: "plain",
-    styles: {
-      fontSize: 6,
-      cellPadding: 1.5,
+    theme: "striped",
+    headStyles: {
+      fillColor: [52, 73, 94],
+      fontSize: 8,
+      fontStyle: "bold",
+      halign: "center"
+    },
+    bodyStyles: {
+      fontSize: 8,
     },
     columnStyles: {
-      0: { cellWidth: 45, fontStyle: 'bold' },
-      1: { cellWidth: 85, halign: 'left' },
+      0: { cellWidth: 45 },
+      1: { cellWidth: 50, halign: "center" },
+      2: { cellWidth: 33, halign: "right" },
     },
     margin: { left: margin, right: margin },
+    alternateRowStyles: {
+      fillColor: [248, 249, 250]
+    }
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 3;
+  currentY = (doc as any).lastAutoTable.finalY + 5;
 
   // Total Box
-  doc.setFillColor(41, 128, 185);
-  doc.rect(margin, currentY, pageWidth - 2 * margin, 7, "F");
+  doc.setFillColor(46, 204, 113);
+  doc.rect(margin, currentY, pageWidth - 2 * margin, 12, "F");
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("TOTAL PAYE:", margin + 3, currentY + 4.5);
-  doc.text(formatMontant(paiement.montant), pageWidth - margin - 3, currentY + 4.5, { align: "right" });
+  doc.text("TOTAL PAYE:", margin + 5, currentY + 8);
+  doc.text(formatMontant(paiement.montant), pageWidth - margin - 5, currentY + 8, { align: "right" });
   doc.setTextColor(0, 0, 0);
 
-  currentY += 10;
+  currentY += 18;
 
-  // Next payment due (for rent and avance only)
-  if (paiement.type === "loyer" && paiement.mois_concerne) {
+  // Récapitulatif si multi-mois
+  if (nombreMois > 1 && (paiement.type === "loyer" || paiement.type === "avance" || paiement.type === "arrieres")) {
+    doc.setFillColor(240, 248, 255);
+    doc.rect(margin, currentY, pageWidth - 2 * margin, 14, "F");
+    doc.setDrawColor(41, 128, 185);
+    doc.rect(margin, currentY, pageWidth - 2 * margin, 14);
+    
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("RECAPITULATIF", margin + 3, currentY + 5);
+    
+    doc.setFont("helvetica", "normal");
+    const startMois = paiement.mois_concerne ? new Date(paiement.mois_concerne) : new Date();
+    const endMois = new Date(startMois);
+    endMois.setMonth(endMois.getMonth() + nombreMois - 1);
+    
+    doc.text(`Nombre de mois payes: ${nombreMois}`, margin + 3, currentY + 10);
+    doc.text(`Periode: ${startMois.toLocaleDateString("fr-FR", { month: "short", year: "numeric" })} - ${endMois.toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}`, pageWidth / 2, currentY + 10);
+    
+    currentY += 18;
+  }
+
+  // Next payment due
+  if ((paiement.type === "loyer" || paiement.type === "avance") && paiement.mois_concerne) {
     const nextMonth = new Date(paiement.mois_concerne);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    nextMonth.setMonth(nextMonth.getMonth() + nombreMois);
     nextMonth.setDate(10);
 
-    doc.setFillColor(240, 248, 255);
-    doc.rect(margin, currentY, pageWidth - 2 * margin, 7, "F");
-    doc.setFontSize(6);
+    doc.setFillColor(255, 243, 224);
+    doc.rect(margin, currentY, pageWidth - 2 * margin, 10, "F");
+    doc.setDrawColor(255, 152, 0);
+    doc.rect(margin, currentY, pageWidth - 2 * margin, 10);
+    
+    doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.text("Prochain paiement:", margin + 2, currentY + 3);
+    doc.setTextColor(230, 126, 34);
+    doc.text("PROCHAIN PAIEMENT DU:", margin + 3, currentY + 6);
     doc.setFont("helvetica", "normal");
-    doc.text(`Le 10 ${nextMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`, margin + 2, currentY + 6);
-    currentY += 9;
-  } else if (paiement.type === "avance" && paiement.mois_concerne) {
-    const finAvance = new Date(paiement.mois_concerne);
-    finAvance.setMonth(finAvance.getMonth() + nombreMois);
-    finAvance.setDate(10);
-
-    doc.setFillColor(240, 248, 255);
-    doc.rect(margin, currentY, pageWidth - 2 * margin, 7, "F");
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "bold");
-    doc.text("Prochain paiement apres avance:", margin + 2, currentY + 3);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Le 10 ${finAvance.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`, margin + 2, currentY + 6);
-    currentY += 9;
+    doc.text(`Le 10 ${nextMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`, pageWidth - margin - 3, currentY + 6, { align: "right" });
+    doc.setTextColor(0, 0, 0);
+    currentY += 14;
   }
 
   // Note for caution
   if (paiement.type === "caution") {
     doc.setFillColor(255, 250, 240);
-    doc.rect(margin, currentY, pageWidth - 2 * margin, 6, "F");
-    doc.setFontSize(5);
+    doc.rect(margin, currentY, pageWidth - 2 * margin, 8, "F");
+    doc.setFontSize(7);
     doc.setFont("helvetica", "italic");
-    doc.text("Note: La caution sera restituee en fin de bail, deduction faite des eventuels dommages.", margin + 2, currentY + 4);
-    currentY += 8;
+    doc.setTextColor(100, 100, 100);
+    doc.text("Note: La caution sera restituee en fin de bail, deduction faite des eventuels dommages.", margin + 3, currentY + 5);
+    doc.setTextColor(0, 0, 0);
+    currentY += 12;
+  }
+
+  // Notes si présentes
+  if (paiement.notes) {
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Notes: ${paiement.notes}`, margin, currentY);
+    doc.setTextColor(0, 0, 0);
   }
 
   // Footer
   doc.setTextColor(100, 100, 100);
-  doc.setFontSize(5);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "italic");
-  doc.text("Ce recu fait foi de paiement. PANPAS IMMOBILIER - www.panpasimmobilier.tech", pageWidth / 2, pageHeight - 4, { align: "center" });
+  doc.text("Ce document fait foi de paiement.", pageWidth / 2, pageHeight - 12, { align: "center" });
+  doc.text("PANPAS IMMOBILIER - www.panpasimmobilier.tech", pageWidth / 2, pageHeight - 8, { align: "center" });
 
   // Save
-  doc.save(`Recu_${paiement.locataire.nom.replace(/\s+/g, "_")}_${new Date(paiement.date_paiement).toISOString().split("T")[0]}.pdf`);
+  const fileName = `Facture_${paiement.locataire.nom.replace(/\s+/g, "_")}_${new Date(paiement.date_paiement).toISOString().split("T")[0]}.pdf`;
+  doc.save(fileName);
 };
 
 // Generate Professional Contract PDF - Format PANPAS with proper pagination
@@ -335,7 +421,7 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   doc.setTextColor(0, 0, 0);
   currentY += 6;
 
-  // Bailleur Section
+  // Bailleur Section - Sans téléphone du propriétaire pour confidentialité
   doc.setFillColor(245, 248, 250);
   doc.rect(margin, currentY - 2, contentWidth, 12, "F");
   
@@ -343,7 +429,7 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   doc.setFont("helvetica", "bold");
   doc.text("LE BAILLEUR:", margin + 2, currentY + 3);
   doc.setFont("helvetica", "normal");
-  doc.text(`Mr/Mme ${proprietaireNom}${proprietaireTel ? " - Tel: " + proprietaireTel : ""}`, margin + 28, currentY + 3);
+  doc.text(`Mr/Mme ${proprietaireNom}`, margin + 28, currentY + 3);
   currentY += 6;
   
   doc.setFont("helvetica", "bold");
@@ -521,56 +607,89 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   currentY += 15;
 
   // Signatures section - check if we need new page for signatures
-  checkNewPage(50);
+  checkNewPage(70);
   
   // Date
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text(`Fait a Kara, le ${new Date(contrat.date_debut).toLocaleDateString("fr-FR")}`, margin, currentY);
-  currentY += 10;
+  currentY += 12;
 
-  // Signatures
-  doc.setFont("helvetica", "bold");
-  doc.text("LE PRENEUR", margin + 15, currentY);
-  doc.text("BAILLEUR", pageWidth - margin - 40, currentY);
+  // Tableau des signatures agrandi
+  const signatureTableHeight = 45;
+  const colWidth = contentWidth / 2;
   
-  currentY += 5;
-  doc.setFont("helvetica", "normal");
-  doc.text(contrat.locataires?.nom || "", margin + 5, currentY);
-  doc.text("AGENCE IMMOBILIERE PANPAS", pageWidth - margin - 55, currentY);
-  
-  // Signature lines
+  // Bordure du tableau
   doc.setDrawColor(0, 0, 0);
-  doc.line(margin, currentY + 15, margin + 60, currentY + 15);
-  doc.line(pageWidth - margin - 60, currentY + 15, pageWidth - margin, currentY + 15);
+  doc.setLineWidth(0.5);
+  doc.rect(margin, currentY, contentWidth, signatureTableHeight);
+  doc.line(margin + colWidth, currentY, margin + colWidth, currentY + signatureTableHeight);
 
-  currentY += 25;
+  // En-têtes
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("LE PRENEUR", margin + colWidth / 2, currentY + 8, { align: "center" });
+  doc.text("LE BAILLEUR", margin + colWidth + colWidth / 2, currentY + 8, { align: "center" });
+  
+  // Noms
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(contrat.locataires?.nom || "", margin + colWidth / 2, currentY + 15, { align: "center" });
+  doc.text("AGENCE IMMOBILIERE PANPAS", margin + colWidth + colWidth / 2, currentY + 15, { align: "center" });
+  
+  // Labels signature
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 100);
+  doc.text("(Signature)", margin + colWidth / 2, currentY + signatureTableHeight - 5, { align: "center" });
+  doc.text("(Signature et cachet)", margin + colWidth + colWidth / 2, currentY + signatureTableHeight - 5, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+
+  currentY += signatureTableHeight + 15;
 
   // FIN DU BAIL section - check if enough space or add new page
-  if (currentY + 40 > maxY) {
+  if (currentY + 60 > maxY) {
     addPageFooter();
     doc.addPage();
     currentY = margin;
   }
 
+  // Tableau FIN DU BAIL agrandi
+  const finBailHeight = 55;
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
-  doc.rect(margin, currentY, contentWidth, 35);
+  doc.rect(margin, currentY, contentWidth, finBailHeight);
   
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("FIN DU BAIL", pageWidth / 2, currentY + 6, { align: "center" });
+  doc.text("FIN DU BAIL", pageWidth / 2, currentY + 8, { align: "center" });
+  
+  // Lignes de séparation
+  doc.setLineWidth(0.3);
+  doc.line(margin, currentY + 12, margin + contentWidth, currentY + 12);
+  
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Liquidation: ___________________________________", margin + 5, currentY + 20);
+  doc.text("Montant restant apres liquidation: _______________", margin + 5, currentY + 28);
+  doc.text("Date de reprise des cles: _______________________", margin + 5, currentY + 36);
+  doc.text("Reserves: _____________________________________", margin + 5, currentY + 44);
+  
+  // Signatures fin de bail
+  const sigColWidth = contentWidth / 3;
+  doc.line(margin, currentY + finBailHeight - 15, margin + contentWidth, currentY + finBailHeight - 15);
   
   doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text("Liquidation:", margin + 5, currentY + 14);
-  doc.text("Montant restant apres liquidation:", pageWidth / 2 + 5, currentY + 14);
-  doc.text("Date de reprise des cles:", margin + 5, currentY + 22);
-  doc.text("Reserves:", pageWidth / 2 + 5, currentY + 22);
+  doc.setFont("helvetica", "bold");
+  doc.text("LOCATAIRE", margin + sigColWidth / 2, currentY + finBailHeight - 10, { align: "center" });
+  doc.text("AGENCE", margin + sigColWidth + sigColWidth / 2, currentY + finBailHeight - 10, { align: "center" });
+  doc.text("BAILLEUR", margin + 2 * sigColWidth + sigColWidth / 2, currentY + finBailHeight - 10, { align: "center" });
   
-  doc.text("LOCATAIRE", margin + 20, currentY + 30);
-  doc.text("Signature", pageWidth / 2, currentY + 30, { align: "center" });
-  doc.text("BAILLEUR", pageWidth - margin - 30, currentY + 30);
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text("(Signature)", margin + sigColWidth / 2, currentY + finBailHeight - 3, { align: "center" });
+  doc.text("(Signature et cachet)", margin + sigColWidth + sigColWidth / 2, currentY + finBailHeight - 3, { align: "center" });
+  doc.text("(Signature)", margin + 2 * sigColWidth + sigColWidth / 2, currentY + finBailHeight - 3, { align: "center" });
 
   // Add footer to last page
   addPageFooter();
