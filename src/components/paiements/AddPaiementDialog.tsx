@@ -57,21 +57,33 @@ export const AddPaiementDialog = () => {
   // Calculer le prochain mois à payer en fonction des paiements existants
   useEffect(() => {
     if (selectedContrat && paiementsExistants && (type === "loyer" || type === "avance")) {
-      // Trouver le dernier mois payé (loyer ou avance)
+      // Trouver le dernier mois payé en tenant compte des paiements multi-mois
       const paiementsLoyer = paiementsExistants.filter(p => 
         (p.type === "loyer" || p.type === "avance") && p.mois_concerne
       );
       
       if (paiementsLoyer.length > 0) {
-        // Trier par mois_concerne décroissant
-        const dernierPaiement = paiementsLoyer.sort((a, b) => 
-          new Date(b.mois_concerne!).getTime() - new Date(a.mois_concerne!).getTime()
-        )[0];
+        // Calculer le dernier mois couvert pour chaque paiement
+        let dernierMoisCouvert = new Date(selectedContrat.date_debut);
         
-        // Calculer le mois suivant
-        const dernierMois = new Date(dernierPaiement.mois_concerne!);
-        dernierMois.setMonth(dernierMois.getMonth() + 1);
-        setMoisConcerne(dernierMois.toISOString().slice(0, 7));
+        paiementsLoyer.forEach(p => {
+          const moisDebut = new Date(p.mois_concerne!);
+          const montant = parseFloat(p.montant?.toString() || "0");
+          const loyerMensuel = selectedContrat.loyer_mensuel;
+          const nbMoisPaye = loyerMensuel > 0 ? Math.max(1, Math.round(montant / loyerMensuel)) : 1;
+          
+          // Calculer le dernier mois couvert par ce paiement
+          const finPaiement = new Date(moisDebut);
+          finPaiement.setMonth(finPaiement.getMonth() + nbMoisPaye - 1);
+          
+          if (finPaiement > dernierMoisCouvert) {
+            dernierMoisCouvert = finPaiement;
+          }
+        });
+        
+        // Prochain mois = dernier mois couvert + 1
+        dernierMoisCouvert.setMonth(dernierMoisCouvert.getMonth() + 1);
+        setMoisConcerne(dernierMoisCouvert.toISOString().slice(0, 7));
       } else {
         // Si aucun paiement, commencer à la date de début du contrat
         const dateDebut = new Date(selectedContrat.date_debut);
@@ -108,58 +120,54 @@ export const AddPaiementDialog = () => {
       const nbMois = parseInt(nombreMois) || 1;
 
       if (type === "loyer" || type === "avance") {
-        // Pour loyer et avance, créer plusieurs paiements si nbMois > 1
-        const paiements = [];
+        // IMPORTANT: Créer UN SEUL paiement consolidé avec le montant total
+        const montantTotal = selectedContrat.loyer_mensuel * nbMois;
+        
+        // Construire une note avec les détails des mois payés
         const moisDepart = new Date(`${moisConcerne}-01`);
+        const moisFin = new Date(moisDepart);
+        moisFin.setMonth(moisFin.getMonth() + nbMois - 1);
+        
+        const notesPaiement = nbMois > 1 
+          ? `${type === "avance" ? "Avance" : "Loyer"} ${nbMois} mois (${moisDepart.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })} → ${moisFin.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })})${notes ? ` - ${notes}` : ""}`
+          : notes || null;
 
-        for (let i = 0; i < nbMois; i++) {
-          const moisCourant = new Date(moisDepart);
-          moisCourant.setMonth(moisCourant.getMonth() + i);
-          
-          paiements.push({
-            contrat_id: contratId,
-            locataire_id: selectedContrat.locataire_id,
-            bien_id: selectedContrat.bien_id,
-            montant: selectedContrat.loyer_mensuel,
-            type: type,
-            mois_concerne: moisCourant.toISOString().slice(0, 10),
-            date_paiement: datePaiement,
-            notes: nbMois > 1 
-              ? `${type === "avance" ? "Avance" : "Loyer"} ${i + 1}/${nbMois} mois${notes ? ` - ${notes}` : ""}`
-              : notes || null,
-            statut: "paye" as const,
-          });
-        }
-
-        const { error } = await supabase.from("paiements").insert(paiements);
+        const { error } = await supabase.from("paiements").insert({
+          contrat_id: contratId,
+          locataire_id: selectedContrat.locataire_id,
+          bien_id: selectedContrat.bien_id,
+          montant: montantTotal,
+          type: type,
+          mois_concerne: moisConcerne + "-01", // Premier mois de la période
+          date_paiement: datePaiement,
+          notes: notesPaiement,
+          statut: "paye" as const,
+        });
         if (error) throw error;
       } else if (type === "arrieres") {
-        // Pour les arriérés, créer un paiement pour chaque mois de la période
+        // Pour les arriérés: créer UN SEUL paiement consolidé
         if (!moisArriereDebut || !moisArriereFin) {
           throw new Error("Veuillez sélectionner la période des arriérés");
         }
 
         const debut = new Date(`${moisArriereDebut}-01`);
         const fin = new Date(`${moisArriereFin}-01`);
-        const paiements = [];
+        const moisDiff = (fin.getFullYear() - debut.getFullYear()) * 12 + (fin.getMonth() - debut.getMonth()) + 1;
+        const montantTotal = selectedContrat.loyer_mensuel * moisDiff;
         
-        let moisCourant = new Date(debut);
-        while (moisCourant <= fin) {
-          paiements.push({
-            contrat_id: contratId,
-            locataire_id: selectedContrat.locataire_id,
-            bien_id: selectedContrat.bien_id,
-            montant: selectedContrat.loyer_mensuel,
-            type: "loyer" as const,
-            mois_concerne: moisCourant.toISOString().slice(0, 10),
-            date_paiement: datePaiement,
-            notes: `Arriéré${notes ? ` - ${notes}` : ""}`,
-            statut: "paye" as const,
-          });
-          moisCourant.setMonth(moisCourant.getMonth() + 1);
-        }
+        const notesPaiement = `Arriérés ${moisDiff} mois (${debut.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })} → ${fin.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })})${notes ? ` - ${notes}` : ""}`;
 
-        const { error } = await supabase.from("paiements").insert(paiements);
+        const { error } = await supabase.from("paiements").insert({
+          contrat_id: contratId,
+          locataire_id: selectedContrat.locataire_id,
+          bien_id: selectedContrat.bien_id,
+          montant: montantTotal,
+          type: "loyer" as const,
+          mois_concerne: moisArriereDebut + "-01", // Premier mois de la période
+          date_paiement: datePaiement,
+          notes: notesPaiement,
+          statut: "paye" as const,
+        });
         if (error) throw error;
       } else {
         // Caution - comportement normal
