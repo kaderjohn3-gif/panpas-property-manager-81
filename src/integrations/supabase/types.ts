@@ -351,6 +351,39 @@ export type Database = {
         }
         Relationships: []
       }
+      rapports_historique: {
+        Row: {
+          benefice_net: number
+          created_at: string
+          date_generation: string
+          donnees_json: Json | null
+          id: string
+          mois_concerne: string
+          total_depenses: number
+          total_revenus: number
+        }
+        Insert: {
+          benefice_net?: number
+          created_at?: string
+          date_generation?: string
+          donnees_json?: Json | null
+          id?: string
+          mois_concerne: string
+          total_depenses?: number
+          total_revenus?: number
+        }
+        Update: {
+          benefice_net?: number
+          created_at?: string
+          date_generation?: string
+          donnees_json?: Json | null
+          id?: string
+          mois_concerne?: string
+          total_depenses?: number
+          total_revenus?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
