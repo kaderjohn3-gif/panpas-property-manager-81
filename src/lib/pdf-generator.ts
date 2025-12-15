@@ -176,7 +176,7 @@ export const generateReceiptPDF = async (
     doc.text(truncateText(paiement.locataire.adresse, 30), margin + 2, currentY + 16);
   }
 
-  // Bien
+  // Bien LOUÉ (avec accent)
   const col2X = margin + colWidth + 4;
   doc.setFillColor(248, 250, 252);
   doc.rect(col2X, currentY, colWidth, 18, "F");
@@ -186,7 +186,7 @@ export const generateReceiptPDF = async (
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(41, 128, 185);
-  doc.text("BIEN LOUE", col2X + 2, currentY + 4);
+  doc.text("BIEN LOUÉ", col2X + 2, currentY + 4); // Corrigé avec accent
   doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "normal");
   doc.text(truncateText(paiement.bien.nom, 28), col2X + 2, currentY + 8);
@@ -319,7 +319,7 @@ export const generateReceiptPDF = async (
     currentY += 8;
   }
 
-  // Prochain paiement
+  // Prochain paiement - AVANT LE ajouté
   if ((paiement.type === "loyer" || paiement.type === "avance") && paiement.mois_concerne) {
     const nextMonth = new Date(paiement.mois_concerne);
     nextMonth.setMonth(nextMonth.getMonth() + nombreMois);
@@ -335,35 +335,34 @@ export const generateReceiptPDF = async (
     doc.setTextColor(200, 100, 0);
     doc.text("PROCHAIN PAIEMENT:", margin + 2, currentY + 4);
     doc.setFont("helvetica", "normal");
-    doc.text(`10 ${nextMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`, pageWidth - margin - 2, currentY + 4, { align: "right" });
+    // Ajout de "AVANT LE" avant la date
+    const nextPaymentText = `AVANT LE 10 ${nextMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`;
+    doc.text(nextPaymentText, pageWidth - margin - 2, currentY + 4, { align: "right" });
     doc.setTextColor(0, 0, 0);
 
     currentY += 8;
   }
 
-  // === BLOC 7: NOTE (caution ou notes) ===
-  if (paiement.type === "caution") {
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(100, 100, 100);
-    doc.text("Caution restituee en fin de bail, deduction faite des dommages.", margin, currentY + 2);
-    doc.setTextColor(0, 0, 0);
-    currentY += 5;
-  }
-
-  if (paiement.notes) {
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Note: ${truncateText(paiement.notes, 60)}`, margin, currentY + 2);
-    doc.setTextColor(0, 0, 0);
-  }
-
-  // === PIED DE PAGE ===
+  // === SUPPRESSION DU BLOC NOTE ET AJUSTEMENT DU PIED DE PAGE ===
+  // On supprime complètement le bloc note et on ajuste le pied de page
+  
+  // Calcul de la position optimale pour le pied de page
+  const footerY = Math.max(currentY + 8, pageHeight - 8);
+  
+  // Pied de page positionné intelligemment
   doc.setTextColor(120, 120, 120);
   doc.setFontSize(6);
   doc.setFont("helvetica", "italic");
-  doc.text("Ce document fait foi de paiement. Merci. - PANPAS IMMOBILIER", pageWidth / 2, pageHeight - 5, { align: "center" });
+  
+  // S'il y a assez d'espace, mettre le pied de page près du bas
+  if (footerY < pageHeight - 10) {
+    doc.text("Ce document fait foi de paiement. Merci. - PANPAS IMMOBILIER", 
+             pageWidth / 2, pageHeight - 5, { align: "center" });
+  } else {
+    // Sinon, le mettre juste après le dernier contenu
+    doc.text("Ce document fait foi de paiement. Merci. - PANPAS IMMOBILIER", 
+             pageWidth / 2, currentY + 5, { align: "center" });
+  }
 
   // === SAUVEGARDE ===
   const fileName = `Facture_${paiement.locataire.nom.replace(/\s+/g, "_")}_${new Date(paiement.date_paiement).toISOString().split("T")[0]}.pdf`;
