@@ -10,7 +10,8 @@ import { Search, Printer, Edit, Trash2 } from "lucide-react";
 import { AddPaiementDialog } from "@/components/paiements/AddPaiementDialog";
 import { EditPaiementDialog } from "@/components/paiements/EditPaiementDialog";
 import { DeletePaiementDialog } from "@/components/paiements/DeletePaiementDialog";
-import { generateReceiptPDF, imageToBase64 } from "@/lib/pdf-generator";
+import { generateReceiptPDF, imageToBase64, PrintOptions } from "@/lib/pdf-generator";
+import PrintOptionsDialog from "@/components/paiements/PrintOptionsDialog";
 import { toast } from "sonner";
 import logo from "@/assets/logo-panpas.jpg";
 
@@ -37,7 +38,10 @@ const Paiements = () => {
     },
   });
 
-  const handlePrintReceipt = async (paiement: any) => {
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [paiementToPrint, setPaiementToPrint] = useState<any>(null);
+
+  const handlePrintReceipt = async (paiement: any, options?: PrintOptions) => {
     try {
       toast.loading("Génération de la facture PDF...");
       
@@ -93,7 +97,8 @@ const Paiements = () => {
           nombreMois: nombreMois,
           moisDetails: moisDetails.length > 0 ? moisDetails : undefined,
         },
-        logoBase64
+        logoBase64,
+        options
       );
       
       toast.dismiss();
@@ -102,6 +107,17 @@ const Paiements = () => {
       toast.dismiss();
       toast.error(`Erreur lors de la génération: ${error.message}`);
     }
+  };
+
+  const openPrintDialogFor = (p: any) => {
+    setPaiementToPrint(p);
+    setPrintDialogOpen(true);
+  };
+
+  const handleConfirmPrint = async (opts: { format: "a5" | "a4" | "custom"; orientation: "portrait" | "landscape" }) => {
+    if (!paiementToPrint) return;
+    await handlePrintReceipt(paiementToPrint, { format: opts.format, orientation: opts.orientation });
+    setPaiementToPrint(null);
   };
 
   const getStatutBadge = (statut: string) => {
@@ -166,7 +182,7 @@ const Paiements = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handlePrintReceipt(p)}
+                              onClick={() => openPrintDialogFor(p)}
                               title="Imprimer le reçu"
                             >
                               <Printer className="h-4 w-4" />
@@ -204,6 +220,8 @@ const Paiements = () => {
           )}
         </CardContent>
       </Card>
+
+      <PrintOptionsDialog open={printDialogOpen} onOpenChange={setPrintDialogOpen} onConfirm={handleConfirmPrint} />
 
       {selectedPaiement && (
         <>
