@@ -71,17 +71,34 @@ const truncateText = (text: string, maxLength: number): string => {
   return text.substring(0, maxLength - 2) + "..";
 };
 
-export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: string) => {
-  // Format A5 VERTICAL (portrait): 148 × 210 mm
+export type PrintOptions = {
+  format?: "a5" | "a4" | "custom";
+  orientation?: "portrait" | "landscape";
+  margin?: number; // mm
+  customSize?: [number, number]; // [width, height] in mm for custom
+};
+
+export const generateReceiptPDF = async (
+  paiement: PaiementData,
+  logoBase64?: string,
+  options?: PrintOptions,
+) => {
+  // Default to A5 portrait
+  const orientation = options?.orientation || "portrait";
+  let formatOption: any = [148, 210];
+  if (options?.format === "a4") formatOption = "a4";
+  if (options?.format === "a5") formatOption = [148, 210];
+  if (options?.format === "custom" && options?.customSize) formatOption = options.customSize;
+
   const doc = new jsPDF({
-    orientation: "portrait",
+    orientation,
     unit: "mm",
-    format: [148, 210],
+    format: formatOption,
   });
 
-  const pageWidth = 148;
-  const pageHeight = 210;
-  const margin = 10;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = typeof options?.margin === "number" ? options!.margin : (options?.format === "a4" ? 15 : 10);
   const contentWidth = pageWidth - 2 * margin;
   let currentY = margin;
 
@@ -230,7 +247,12 @@ export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: st
   }
 
   // Police adaptative selon nombre de lignes
-  const fontSize = tableData.length > 6 ? 6 : 7;
+  const fontSize = tableData.length > 8 ? 6 : 7;
+
+  // Calculate column widths proportionally to contentWidth to adapt to different formats
+  const col0Width = Math.max(10, Math.round(contentWidth * 0.09));
+  const col2Width = Math.max(24, Math.round(contentWidth * 0.28));
+  const col1Width = contentWidth - col0Width - col2Width - 2; // small gap
 
   autoTable(doc, {
     startY: currentY,
@@ -242,22 +264,22 @@ export const generateReceiptPDF = async (paiement: PaiementData, logoBase64?: st
       fontSize: fontSize,
       fontStyle: "bold",
       halign: "center",
-      cellPadding: 1.5
+      cellPadding: 1.5,
     },
     bodyStyles: {
       fontSize: fontSize,
-      cellPadding: 1.5
+      cellPadding: 1.5,
     },
     columnStyles: {
-      0: { cellWidth: 12, halign: "center" },
-      1: { cellWidth: 78, halign: "left" },
-      2: { cellWidth: 38, halign: "right" },
+      0: { cellWidth: col0Width, halign: "center" },
+      1: { cellWidth: col1Width, halign: "left" },
+      2: { cellWidth: col2Width, halign: "right" },
     },
     margin: { left: margin, right: margin },
     alternateRowStyles: {
-      fillColor: [250, 250, 250]
+      fillColor: [250, 250, 250],
     },
-    tableWidth: contentWidth
+    tableWidth: contentWidth,
   });
 
   currentY = (doc as any).lastAutoTable.finalY + 2;
