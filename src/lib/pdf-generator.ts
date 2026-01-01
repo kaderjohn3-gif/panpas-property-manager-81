@@ -55,6 +55,13 @@ const formatMontant = (montant: number): string => {
   return intPart + " FCFA";
 };
 
+// Format number simple (sans FCFA)
+const formatNumber = (montant: number): string => {
+  const parts = montant.toString().split('.');
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return intPart;
+};
+
 // Generate receipt number: PANPAS001/MM/YY
 const generateReceiptNumber = (paiementId: string, date: string): string => {
   const d = new Date(date);
@@ -74,8 +81,8 @@ const truncateText = (text: string, maxLength: number): string => {
 export type PrintOptions = {
   format?: "a5" | "a4" | "custom";
   orientation?: "portrait" | "landscape";
-  margin?: number; // mm
-  customSize?: [number, number]; // [width, height] in mm for custom
+  margin?: number;
+  customSize?: [number, number];
 };
 
 export const generateReceiptPDF = async (
@@ -83,7 +90,6 @@ export const generateReceiptPDF = async (
   logoBase64?: string,
   options?: PrintOptions,
 ) => {
-  // Default to A5 portrait
   const orientation = options?.orientation || "portrait";
   let formatOption: any = [148, 210];
   if (options?.format === "a4") formatOption = "a4";
@@ -102,10 +108,8 @@ export const generateReceiptPDF = async (
   const contentWidth = pageWidth - 2 * margin;
   let currentY = margin;
 
-  // Police Helvetica uniquement, max 10pt
   doc.setFont("helvetica", "normal");
 
-  // === CALCUL DES MOIS ===
   let nombreMois = paiement.nombreMois || 1;
   const loyerMensuel = paiement.contrat?.loyer_mensuel || paiement.montant;
 
@@ -113,7 +117,7 @@ export const generateReceiptPDF = async (
     nombreMois = Math.max(1, Math.round(paiement.montant / paiement.contrat.loyer_mensuel));
   }
 
-  // === BLOC 1: HEADER (Logo + Entreprise) ===
+  // HEADER
   if (logoBase64) {
     try {
       doc.addImage(logoBase64, "JPEG", margin, currentY, 14, 14);
@@ -133,7 +137,6 @@ export const generateReceiptPDF = async (
   doc.text("Gestion Immobiliere", logoBase64 ? margin + 17 : margin, currentY + 9);
   doc.text("+228 92 18 40 65", logoBase64 ? margin + 17 : margin, currentY + 12);
 
-  // Numéro facture à droite
   const receiptNumber = generateReceiptNumber(paiement.id, paiement.date_paiement);
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
@@ -148,16 +151,14 @@ export const generateReceiptPDF = async (
 
   currentY += 16;
 
-  // Ligne séparatrice
   doc.setDrawColor(41, 128, 185);
   doc.setLineWidth(0.4);
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 4;
 
-  // === BLOC 2: INFORMATIONS (Locataire + Bien) ===
+  // LOCATAIRE + BIEN
   const colWidth = (contentWidth - 4) / 2;
 
-  // Locataire
   doc.setFillColor(248, 250, 252);
   doc.rect(margin, currentY, colWidth, 18, "F");
   doc.setDrawColor(220, 220, 220);
@@ -176,7 +177,6 @@ export const generateReceiptPDF = async (
     doc.text(truncateText(paiement.locataire.adresse, 30), margin + 2, currentY + 16);
   }
 
-  // Bien LOUÉ (avec accent)
   const col2X = margin + colWidth + 4;
   doc.setFillColor(248, 250, 252);
   doc.rect(col2X, currentY, colWidth, 18, "F");
@@ -186,7 +186,7 @@ export const generateReceiptPDF = async (
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(41, 128, 185);
-  doc.text("BIEN LOUÉ", col2X + 2, currentY + 4); // Corrigé avec accent
+  doc.text("BIEN LOUÉ", col2X + 2, currentY + 4);
   doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "normal");
   doc.text(truncateText(paiement.bien.nom, 28), col2X + 2, currentY + 8);
@@ -196,7 +196,7 @@ export const generateReceiptPDF = async (
 
   currentY += 21;
 
-  // === BLOC 3: TYPE PAIEMENT ===
+  // TYPE PAIEMENT
   const typeLabels: { [key: string]: string } = {
     loyer: "PAIEMENT DE LOYER",
     avance: "AVANCE SUR LOYER",
@@ -214,7 +214,7 @@ export const generateReceiptPDF = async (
 
   currentY += 8;
 
-  // === BLOC 4: TABLEAU DES PAIEMENTS ===
+  // TABLE
   const tableData: string[][] = [];
 
   if (paiement.type === "loyer" || paiement.type === "avance" || paiement.type === "arrieres") {
@@ -246,13 +246,10 @@ export const generateReceiptPDF = async (
     tableData.push(["1", "Depot de garantie", formatMontant(paiement.montant)]);
   }
 
-  // Police adaptative selon nombre de lignes
   const fontSize = tableData.length > 8 ? 6 : 7;
-
-  // Calculate column widths proportionally to contentWidth to adapt to different formats
   const col0Width = Math.max(10, Math.round(contentWidth * 0.09));
   const col2Width = Math.max(24, Math.round(contentWidth * 0.28));
-  const col1Width = contentWidth - col0Width - col2Width - 2; // small gap
+  const col1Width = contentWidth - col0Width - col2Width - 2;
 
   autoTable(doc, {
     startY: currentY,
@@ -284,7 +281,7 @@ export const generateReceiptPDF = async (
 
   currentY = (doc as any).lastAutoTable.finalY + 2;
 
-  // === BLOC 5: TOTAL ===
+  // TOTAL
   doc.setFillColor(46, 204, 113);
   doc.rect(margin, currentY, contentWidth, 8, "F");
   doc.setTextColor(255, 255, 255);
@@ -296,7 +293,7 @@ export const generateReceiptPDF = async (
 
   currentY += 10;
 
-  // === BLOC 6: PÉRIODE + PROCHAIN PAIEMENT ===
+  // PERIODE
   if (nombreMois > 1 && (paiement.type === "loyer" || paiement.type === "avance" || paiement.type === "arrieres")) {
     const startMois = paiement.mois_concerne ? new Date(paiement.mois_concerne) : new Date();
     const endMois = new Date(startMois);
@@ -319,7 +316,7 @@ export const generateReceiptPDF = async (
     currentY += 8;
   }
 
-  // Prochain paiement - AVANT LE ajouté
+  // PROCHAIN PAIEMENT
   if ((paiement.type === "loyer" || paiement.type === "avance") && paiement.mois_concerne) {
     const nextMonth = new Date(paiement.mois_concerne);
     nextMonth.setMonth(nextMonth.getMonth() + nombreMois);
@@ -335,7 +332,6 @@ export const generateReceiptPDF = async (
     doc.setTextColor(200, 100, 0);
     doc.text("PROCHAIN PAIEMENT:", margin + 2, currentY + 4);
     doc.setFont("helvetica", "normal");
-    // Ajout de "AVANT LE" avant la date
     const nextPaymentText = `AVANT LE 10 ${nextMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`;
     doc.text(nextPaymentText, pageWidth - margin - 2, currentY + 4, { align: "right" });
     doc.setTextColor(0, 0, 0);
@@ -343,33 +339,517 @@ export const generateReceiptPDF = async (
     currentY += 8;
   }
 
-  // === SUPPRESSION DU BLOC NOTE ET AJUSTEMENT DU PIED DE PAGE ===
-  // On supprime complètement le bloc note et on ajuste le pied de page
-  
-  // Calcul de la position optimale pour le pied de page
-  const footerY = Math.max(currentY + 8, pageHeight - 8);
-  
-  // Pied de page positionné intelligemment
+  // FOOTER
   doc.setTextColor(120, 120, 120);
   doc.setFontSize(6);
   doc.setFont("helvetica", "italic");
   
-  // S'il y a assez d'espace, mettre le pied de page près du bas
-  if (footerY < pageHeight - 10) {
+  if (currentY < pageHeight - 15) {
     doc.text("Ce document fait foi de paiement. Merci. - PANPAS IMMOBILIER", 
              pageWidth / 2, pageHeight - 5, { align: "center" });
   } else {
-    // Sinon, le mettre juste après le dernier contenu
     doc.text("Ce document fait foi de paiement. Merci. - PANPAS IMMOBILIER", 
              pageWidth / 2, currentY + 5, { align: "center" });
   }
 
-  // === SAUVEGARDE ===
   const fileName = `Facture_${paiement.locataire.nom.replace(/\s+/g, "_")}_${new Date(paiement.date_paiement).toISOString().split("T")[0]}.pdf`;
   doc.save(fileName);
 };
 
-// Generate Professional Contract PDF
+// ========== RAPPORT PROPRIETAIRE (Format inspiré du document Word) ==========
+interface ProprietaireReportData {
+  proprietaire: {
+    id: string;
+    nom: string;
+    telephone?: string;
+    email?: string;
+  };
+  biens: Array<{
+    id: string;
+    nom: string;
+    adresse: string;
+    type: string;
+    loyer_mensuel: number;
+    commission_pourcentage: number;
+    statut: string;
+  }>;
+  locataires: Array<{
+    nom: string;
+    bien_nom: string;
+    loyer: number;
+    loyers_payes: string[];
+    montant_paye: number;
+    arrieres: number;
+    caution_payee: number;
+  }>;
+  depenses: Array<{
+    description: string;
+    montant: number;
+    categorie: string;
+    bien_nom: string;
+  }>;
+  totals: {
+    nombre_chambres: number;
+    nombre_libres: number;
+    total_loyers: number;
+    total_arrieres: number;
+    total_cautions: number;
+    total_depenses: number;
+    commission: number;
+    somme_a_verser: number;
+  };
+}
+
+export const generateProprietaireRapportPDF = async (
+  data: ProprietaireReportData,
+  selectedMonth: string,
+  logoBase64?: string
+) => {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const contentWidth = pageWidth - 2 * margin;
+  let currentY = margin;
+
+  const monthDate = new Date(selectedMonth + "-01");
+  const monthLabel = monthDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+
+  // HEADER avec style du document Word
+  doc.setFillColor(41, 128, 185);
+  doc.rect(0, 0, pageWidth, 35, "F");
+
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, "JPEG", margin, 8, 20, 20);
+    } catch (error) {
+      console.error("Error adding logo:", error);
+    }
+  }
+
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("AGENCE IMMOBILIERE PANPAS", logoBase64 ? margin + 25 : margin, 16);
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Gestion Immobiliere Professionnelle", logoBase64 ? margin + 25 : margin, 23);
+  doc.text("+228 92 18 40 65 | www.panpasimmobilier.tech", logoBase64 ? margin + 25 : margin, 29);
+
+  currentY = 42;
+
+  // TITRE DU RAPPORT
+  doc.setFillColor(52, 73, 94);
+  doc.rect(margin, currentY, contentWidth, 12, "F");
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(`SITUATION DU MOIS DE ${monthLabel.toUpperCase()}`, pageWidth / 2, currentY + 8, { align: "center" });
+
+  currentY += 16;
+
+  // NOM DU PROPRIETAIRE
+  doc.setFillColor(236, 240, 241);
+  doc.rect(margin, currentY, contentWidth, 10, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(44, 62, 80);
+  doc.text(`PROPRIETAIRE: ${data.proprietaire.nom.toUpperCase()}`, pageWidth / 2, currentY + 7, { align: "center" });
+
+  currentY += 14;
+
+  // STATISTIQUES CHAMBRES
+  const statWidth = contentWidth / 2 - 2;
+  
+  doc.setFillColor(46, 204, 113);
+  doc.roundedRect(margin, currentY, statWidth, 14, 2, 2, "F");
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("Nombre de biens", margin + statWidth / 2, currentY + 5, { align: "center" });
+  doc.setFontSize(14);
+  doc.text(String(data.totals.nombre_chambres).padStart(2, '0'), margin + statWidth / 2, currentY + 11, { align: "center" });
+
+  doc.setFillColor(231, 76, 60);
+  doc.roundedRect(margin + statWidth + 4, currentY, statWidth, 14, 2, 2, "F");
+  doc.setFontSize(9);
+  doc.text("Biens libres", margin + statWidth + 4 + statWidth / 2, currentY + 5, { align: "center" });
+  doc.setFontSize(14);
+  doc.text(String(data.totals.nombre_libres).padStart(2, '0'), margin + statWidth + 4 + statWidth / 2, currentY + 11, { align: "center" });
+
+  currentY += 18;
+
+  // TABLEAU DES ENTREES (Locataires)
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(41, 128, 185);
+  doc.text("LES ENTRÉES", margin, currentY);
+  currentY += 4;
+
+  const locatairesData = data.locataires.map(loc => [
+    loc.nom,
+    formatNumber(loc.loyer),
+    loc.loyers_payes.length > 0 ? loc.loyers_payes.join(", ") : "-",
+    loc.montant_paye > 0 ? formatNumber(loc.montant_paye) : "-",
+    loc.arrieres > 0 ? formatNumber(loc.arrieres) : "-",
+    loc.caution_payee > 0 ? formatNumber(loc.caution_payee) : "-"
+  ]);
+
+  // Ajouter ligne total
+  locatairesData.push([
+    "TOTAL",
+    formatNumber(data.locataires.reduce((sum, l) => sum + l.loyer, 0)),
+    "",
+    formatNumber(data.totals.total_loyers),
+    formatNumber(data.totals.total_arrieres),
+    formatNumber(data.totals.total_cautions)
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Noms des locataires", "Prix", "Loyer payé", "Montant", "Arriérés", "Cautions"]],
+    body: locatairesData,
+    theme: "grid",
+    headStyles: {
+      fillColor: [52, 73, 94],
+      fontSize: 8,
+      fontStyle: "bold",
+      halign: "center",
+      cellPadding: 2,
+    },
+    bodyStyles: {
+      fontSize: 8,
+      cellPadding: 2,
+    },
+    columnStyles: {
+      0: { halign: "left", cellWidth: 40 },
+      1: { halign: "right", cellWidth: 22 },
+      2: { halign: "center", cellWidth: 35 },
+      3: { halign: "right", cellWidth: 25 },
+      4: { halign: "right", cellWidth: 25 },
+      5: { halign: "right", cellWidth: 25 },
+    },
+    margin: { left: margin, right: margin },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    didParseCell: function (hookData) {
+      if (hookData.row.index === locatairesData.length - 1) {
+        hookData.cell.styles.fontStyle = 'bold';
+        hookData.cell.styles.fillColor = [220, 220, 220];
+      }
+    }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 8;
+
+  // TABLEAU DES DEPENSES
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(231, 76, 60);
+  doc.text("LES DÉPENSES", margin, currentY);
+  currentY += 4;
+
+  const depensesData = data.depenses.map(dep => [
+    dep.description,
+    formatNumber(dep.montant)
+  ]);
+
+  // Ajouter commission
+  depensesData.push(["COMMISSION AGENCE", formatNumber(data.totals.commission)]);
+  
+  // Total dépenses
+  depensesData.push(["TOTAL DES DÉPENSES", formatNumber(data.totals.total_depenses + data.totals.commission)]);
+  
+  // Somme à verser
+  depensesData.push([`SOMME À VERSER (${formatNumber(data.totals.total_loyers)} - ${formatNumber(data.totals.total_depenses + data.totals.commission)})`, formatNumber(data.totals.somme_a_verser)]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Motifs", "Montants"]],
+    body: depensesData,
+    theme: "grid",
+    headStyles: {
+      fillColor: [231, 76, 60],
+      fontSize: 9,
+      fontStyle: "bold",
+      halign: "center",
+      cellPadding: 2,
+    },
+    bodyStyles: {
+      fontSize: 9,
+      cellPadding: 2,
+    },
+    columnStyles: {
+      0: { halign: "left", cellWidth: 120 },
+      1: { halign: "right", cellWidth: 40 },
+    },
+    margin: { left: margin, right: margin },
+    alternateRowStyles: { fillColor: [255, 250, 250] },
+    didParseCell: function (hookData) {
+      const lastIndex = depensesData.length - 1;
+      if (hookData.row.index === lastIndex) {
+        hookData.cell.styles.fontStyle = 'bold';
+        hookData.cell.styles.fillColor = [46, 204, 113];
+        hookData.cell.styles.textColor = [255, 255, 255];
+      } else if (hookData.row.index === lastIndex - 1 || hookData.row.index === lastIndex - 2) {
+        hookData.cell.styles.fontStyle = 'bold';
+        hookData.cell.styles.fillColor = [220, 220, 220];
+      }
+    }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 10;
+
+  // RESUME FINANCIER
+  const boxWidth = contentWidth / 3 - 4;
+  
+  doc.setFillColor(46, 204, 113);
+  doc.roundedRect(margin, currentY, boxWidth, 18, 2, 2, "F");
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("TOTAL ENCAISSÉ", margin + boxWidth / 2, currentY + 6, { align: "center" });
+  doc.setFontSize(11);
+  doc.text(formatMontant(data.totals.total_loyers), margin + boxWidth / 2, currentY + 14, { align: "center" });
+
+  doc.setFillColor(231, 76, 60);
+  doc.roundedRect(margin + boxWidth + 4, currentY, boxWidth, 18, 2, 2, "F");
+  doc.setFontSize(8);
+  doc.text("TOTAL DÉPENSES", margin + boxWidth + 4 + boxWidth / 2, currentY + 6, { align: "center" });
+  doc.setFontSize(11);
+  doc.text(formatMontant(data.totals.total_depenses + data.totals.commission), margin + boxWidth + 4 + boxWidth / 2, currentY + 14, { align: "center" });
+
+  doc.setFillColor(41, 128, 185);
+  doc.roundedRect(margin + 2 * (boxWidth + 4), currentY, boxWidth, 18, 2, 2, "F");
+  doc.setFontSize(8);
+  doc.text("À VERSER", margin + 2 * (boxWidth + 4) + boxWidth / 2, currentY + 6, { align: "center" });
+  doc.setFontSize(11);
+  doc.text(formatMontant(data.totals.somme_a_verser), margin + 2 * (boxWidth + 4) + boxWidth / 2, currentY + 14, { align: "center" });
+
+  // FOOTER
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Rapport généré le ${new Date().toLocaleDateString("fr-FR")} - PANPAS IMMOBILIER`, pageWidth / 2, pageHeight - 8, { align: "center" });
+
+  const fileName = `Rapport_${data.proprietaire.nom.replace(/\s+/g, "_")}_${selectedMonth}.pdf`;
+  doc.save(fileName);
+  
+  return {
+    proprietaire_id: data.proprietaire.id,
+    proprietaire_nom: data.proprietaire.nom,
+    mois_concerne: selectedMonth,
+    total_revenus: data.totals.total_loyers,
+    total_depenses: data.totals.total_depenses + data.totals.commission,
+    somme_a_verser: data.totals.somme_a_verser
+  };
+};
+
+// ========== RAPPORT GENERAL AGENCE ==========
+interface AgenceReportData {
+  proprietaires: Array<{
+    nom: string;
+    total_loyers: number;
+    total_depenses: number;
+    commission: number;
+    somme_versee: number;
+  }>;
+  totals: {
+    total_loyers: number;
+    total_depenses: number;
+    total_commissions: number;
+    benefice_net: number;
+    nombre_biens: number;
+    nombre_occupes: number;
+    nombre_locataires: number;
+  };
+}
+
+export const generateAgenceRapportPDF = async (
+  data: AgenceReportData,
+  selectedMonth: string,
+  logoBase64?: string
+) => {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const contentWidth = pageWidth - 2 * margin;
+  let currentY = margin;
+
+  const monthDate = new Date(selectedMonth + "-01");
+  const monthLabel = monthDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+
+  // HEADER
+  doc.setFillColor(52, 73, 94);
+  doc.rect(0, 0, pageWidth, 40, "F");
+
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, "JPEG", margin, 10, 22, 22);
+    } catch (error) {
+      console.error("Error adding logo:", error);
+    }
+  }
+
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("PANPAS IMMOBILIER", logoBase64 ? margin + 28 : margin, 20);
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text("RAPPORT GÉNÉRAL DE L'AGENCE", logoBase64 ? margin + 28 : margin, 28);
+  doc.text("+228 92 18 40 65", logoBase64 ? margin + 28 : margin, 35);
+
+  currentY = 48;
+
+  // TITRE
+  doc.setFillColor(41, 128, 185);
+  doc.rect(margin, currentY, contentWidth, 14, "F");
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(`BILAN DU MOIS DE ${monthLabel.toUpperCase()}`, pageWidth / 2, currentY + 9, { align: "center" });
+
+  currentY += 20;
+
+  // STATISTIQUES GENERALES
+  const statW = (contentWidth - 12) / 4;
+  
+  const stats = [
+    { label: "Biens gérés", value: data.totals.nombre_biens, color: [41, 128, 185] },
+    { label: "Occupés", value: data.totals.nombre_occupes, color: [46, 204, 113] },
+    { label: "Libres", value: data.totals.nombre_biens - data.totals.nombre_occupes, color: [231, 76, 60] },
+    { label: "Locataires", value: data.totals.nombre_locataires, color: [155, 89, 182] },
+  ];
+
+  stats.forEach((stat, i) => {
+    const x = margin + i * (statW + 4);
+    doc.setFillColor(stat.color[0], stat.color[1], stat.color[2]);
+    doc.roundedRect(x, currentY, statW, 20, 2, 2, "F");
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(stat.label, x + statW / 2, currentY + 7, { align: "center" });
+    doc.setFontSize(14);
+    doc.text(String(stat.value), x + statW / 2, currentY + 16, { align: "center" });
+  });
+
+  currentY += 28;
+
+  // TABLEAU PAR PROPRIETAIRE
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(52, 73, 94);
+  doc.text("RÉCAPITULATIF PAR PROPRIÉTAIRE", margin, currentY);
+  currentY += 5;
+
+  const propData = data.proprietaires.map(p => [
+    p.nom,
+    formatNumber(p.total_loyers),
+    formatNumber(p.total_depenses),
+    formatNumber(p.commission),
+    formatNumber(p.somme_versee)
+  ]);
+
+  propData.push([
+    "TOTAL",
+    formatNumber(data.totals.total_loyers),
+    formatNumber(data.totals.total_depenses),
+    formatNumber(data.totals.total_commissions),
+    formatNumber(data.totals.total_loyers - data.totals.total_depenses - data.totals.total_commissions)
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Propriétaire", "Loyers", "Dépenses", "Commission", "Versé"]],
+    body: propData,
+    theme: "grid",
+    headStyles: {
+      fillColor: [52, 73, 94],
+      fontSize: 9,
+      fontStyle: "bold",
+      halign: "center",
+    },
+    bodyStyles: {
+      fontSize: 9,
+    },
+    columnStyles: {
+      0: { halign: "left", cellWidth: 50 },
+      1: { halign: "right", cellWidth: 30 },
+      2: { halign: "right", cellWidth: 30 },
+      3: { halign: "right", cellWidth: 30 },
+      4: { halign: "right", cellWidth: 30 },
+    },
+    margin: { left: margin, right: margin },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    didParseCell: function (hookData) {
+      if (hookData.row.index === propData.length - 1) {
+        hookData.cell.styles.fontStyle = 'bold';
+        hookData.cell.styles.fillColor = [220, 220, 220];
+      }
+    }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 12;
+
+  // RESUME FINANCIER AGENCE
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(52, 73, 94);
+  doc.text("BILAN FINANCIER DE L'AGENCE", margin, currentY);
+  currentY += 6;
+
+  const financeBox = contentWidth / 2 - 5;
+
+  // Commission gagnée
+  doc.setFillColor(46, 204, 113);
+  doc.roundedRect(margin, currentY, financeBox, 25, 3, 3, "F");
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("COMMISSIONS GAGNÉES", margin + financeBox / 2, currentY + 8, { align: "center" });
+  doc.setFontSize(16);
+  doc.text(formatMontant(data.totals.total_commissions), margin + financeBox / 2, currentY + 19, { align: "center" });
+
+  // Bénéfice net
+  doc.setFillColor(41, 128, 185);
+  doc.roundedRect(margin + financeBox + 10, currentY, financeBox, 25, 3, 3, "F");
+  doc.setFontSize(10);
+  doc.text("BÉNÉFICE NET GLOBAL", margin + financeBox + 10 + financeBox / 2, currentY + 8, { align: "center" });
+  doc.setFontSize(16);
+  doc.text(formatMontant(data.totals.benefice_net), margin + financeBox + 10 + financeBox / 2, currentY + 19, { align: "center" });
+
+  // FOOTER
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Rapport interne généré le ${new Date().toLocaleDateString("fr-FR")} - CONFIDENTIEL - PANPAS IMMOBILIER`, pageWidth / 2, pageHeight - 8, { align: "center" });
+
+  const fileName = `Rapport_Agence_${selectedMonth}.pdf`;
+  doc.save(fileName);
+
+  return {
+    mois_concerne: selectedMonth,
+    total_revenus: data.totals.total_loyers,
+    total_depenses: data.totals.total_depenses,
+    total_commissions: data.totals.total_commissions,
+    benefice_net: data.totals.benefice_net
+  };
+};
+
+// ========== CONTRAT PDF ==========
 export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -403,7 +883,6 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
     doc.setTextColor(0, 0, 0);
   };
 
-  // Logo
   if (logoBase64) {
     try {
       doc.addImage(logoBase64, "JPEG", margin, currentY, 18, 18);
@@ -501,7 +980,6 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   doc.text("IL A ETE CONVENU CE QUI SUIT:", margin, currentY);
   currentY += 6;
 
-  // Articles
   const articles = [
     {
       title: "ARTICLE 1 - DESIGNATION DU BIEN",
@@ -564,7 +1042,6 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
 
   checkNewPage(50);
 
-  // Signatures
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(41, 128, 185);
@@ -604,7 +1081,7 @@ export const generateContratPDF = async (contrat: any, logoBase64?: string) => {
   doc.save(fileName);
 };
 
-// Generate Financial Report PDF
+// ========== RAPPORT FINANCIER SIMPLE (existant) ==========
 export const generateRapportPDF = async (financialData: any, selectedMonth: string, logoBase64?: string) => {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -621,7 +1098,6 @@ export const generateRapportPDF = async (financialData: any, selectedMonth: stri
   const monthDate = new Date(selectedMonth + "-01");
   const monthLabel = monthDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
-  // Header
   if (logoBase64) {
     try {
       doc.addImage(logoBase64, "JPEG", margin, currentY, 18, 18);
@@ -641,7 +1117,6 @@ export const generateRapportPDF = async (financialData: any, selectedMonth: stri
   doc.text("Rapport Financier Mensuel", logoBase64 ? margin + 22 : margin, currentY + 11);
   doc.text("+228 92 18 40 65 | www.panpasimmobilier.tech", logoBase64 ? margin + 22 : margin, currentY + 15);
 
-  // Date
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 0, 0);
@@ -657,17 +1132,14 @@ export const generateRapportPDF = async (financialData: any, selectedMonth: stri
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 8;
 
-  // Title
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 0, 0);
   doc.text("RAPPORT FINANCIER", pageWidth / 2, currentY, { align: "center" });
   currentY += 10;
 
-  // Summary cards
   const cardWidth = (contentWidth - 10) / 3;
 
-  // Revenus
   doc.setFillColor(220, 252, 231);
   doc.roundedRect(margin, currentY, cardWidth, 22, 3, 3, "F");
   doc.setFontSize(8);
@@ -678,7 +1150,6 @@ export const generateRapportPDF = async (financialData: any, selectedMonth: stri
   doc.setFont("helvetica", "bold");
   doc.text(formatMontant(financialData.totals.revenus), margin + cardWidth / 2, currentY + 15, { align: "center" });
 
-  // Dépenses
   doc.setFillColor(254, 226, 226);
   doc.roundedRect(margin + cardWidth + 5, currentY, cardWidth, 22, 3, 3, "F");
   doc.setTextColor(239, 68, 68);
@@ -689,7 +1160,6 @@ export const generateRapportPDF = async (financialData: any, selectedMonth: stri
   doc.setFont("helvetica", "bold");
   doc.text(formatMontant(financialData.totals.depenses), margin + cardWidth + 5 + cardWidth / 2, currentY + 15, { align: "center" });
 
-  // Bénéfice
   const beneficeColor = financialData.totals.benefice >= 0 ? [59, 130, 246] : [239, 68, 68];
   doc.setFillColor(beneficeColor[0] >= 100 ? 219 : 254, beneficeColor[0] >= 100 ? 234 : 226, beneficeColor[0] >= 100 ? 254 : 226);
   doc.roundedRect(pageWidth - margin - cardWidth, currentY, cardWidth, 22, 3, 3, "F");
@@ -703,7 +1173,6 @@ export const generateRapportPDF = async (financialData: any, selectedMonth: stri
 
   currentY += 30;
 
-  // Table
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(41, 128, 185);
@@ -748,15 +1217,14 @@ export const generateRapportPDF = async (financialData: any, selectedMonth: stri
     alternateRowStyles: {
       fillColor: [250, 250, 250]
     },
-    didParseCell: function (data) {
-      if (data.row.index === tableData.length - 1) {
-        data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fillColor = [240, 240, 240];
+    didParseCell: function (hookData) {
+      if (hookData.row.index === tableData.length - 1) {
+        hookData.cell.styles.fontStyle = 'bold';
+        hookData.cell.styles.fillColor = [240, 240, 240];
       }
     }
   });
 
-  // Footer
   doc.setFontSize(7);
   doc.setTextColor(120, 120, 120);
   doc.setFont("helvetica", "italic");
