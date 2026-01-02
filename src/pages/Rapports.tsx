@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, TrendingUp, DollarSign, Receipt, Users, Printer, Search, History, Download, Trash2, Building2 } from "lucide-react";
-import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth, parse } from "date-fns";
 import { fr } from "date-fns/locale";
 import { generateRapportPDF, generateProprietaireRapportPDF, generateAgenceRapportPDF, imageToBase64 } from "@/lib/pdf-generator";
 import logo from "@/assets/logo-panpas.jpg";
@@ -16,13 +16,27 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
 const Rapports = () => {
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [searchHistory, setSearchHistory] = useState("");
-  const [selectedProprietaire, setSelectedProprietaire] = useState<string>("all");
   const queryClient = useQueryClient();
 
-  const monthStart = startOfMonth(new Date(selectedMonth));
-  const monthEnd = endOfMonth(new Date(selectedMonth));
+  type CompleteReportData = {
+    proprietaires: any[];
+    biens: any[];
+    contrats: any[];
+    paiements: any[];
+    depenses: any[];
+  };
+
+  const monthDate = parse(selectedMonth, "yyyy-MM", new Date());
+  const monthStart = startOfMonth(monthDate);
+  const monthEnd = endOfMonth(monthDate);
+
+  const isContratActifDansPeriode = (contrat: any, start: Date, end: Date) => {
+    const debut = new Date(contrat.date_debut);
+    const fin = contrat.date_fin ? new Date(contrat.date_fin) : null;
+    return debut <= end && (!fin || fin >= start);
+  };
 
   // Fetch proprietaires
   const { data: proprietaires } = useQuery({
@@ -75,86 +89,145 @@ const Rapports = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rapports-historique"] }),
   });
 
-  const monthOptions = Array.from({ length: 24 }, (_, i) => {
+  const monthOptions = Array.from({ length: 60 }, (_, i) => {
     const date = subMonths(new Date(), i);
-    return { value: format(date, 'yyyy-MM'), label: format(date, 'MMMM yyyy', { locale: fr }) };
+    return { value: format(date, "yyyy-MM"), label: format(date, "MMMM yyyy", { locale: fr }) };
   });
 
   // Fetch complete data for reports
-  const { data: reportData, isLoading } = useQuery({
+  const { data: reportData, isLoading } = useQuery<CompleteReportData>({
     queryKey: ["complete-report-data", selectedMonth],
     queryFn: async () => {
-      const { data: allProprietaires } = await supabase.from("proprietaires").select("*");
-      const { data: biens } = await supabase.from("biens").select("*");
-      const { data: contrats } = await supabase.from("contrats").select("*, locataires(*)").eq("statut", "actif");
-      const { data: paiements } = await supabase
-        .from("paiements")
-        .select("*, biens(*), locataires(*)")
-        .gte("date_paiement", format(monthStart, 'yyyy-MM-dd'))
-        .lte("date_paiement", format(monthEnd, 'yyyy-MM-dd'));
-      const { data: depenses } = await supabase
-        .from("depenses")
-        .select("*, biens(*)")
-        .gte("date_depense", format(monthStart, 'yyyy-MM-dd'))
-        .lte("date_depense", format(monthEnd, 'yyyy-MM-dd'));
+      const start = format(monthStart, "yyyy-MM-dd");
+      const end = format(monthEnd, "yyyy-MM-dd");
 
-      return { proprietaires: allProprietaires || [], biens: biens || [], contrats: contrats || [], paiements: paiements || [], depenses: depenses || [] };
+      try {
+        const [proprietairesRes, biensRes, contratsRes, paiementsRes, depensesRes] = await Promise.all([
+          supabase.from("proprietaires").select("*"),
+          supabase.from("biens").select("*"),
+          supabase.from("contrats").select("*, locataires(*)"),
+          supabase
+            .from("paiements")
+            .select("*, biens(*), locataires(*)")
+            .or(
+              `and(mois_concerne.gte.${start},mois_concerne.lte.${end}),and(mois_concerne.is.null,date_paiement.gte.${start},date_paiement.lte.${end})`
+            ),
+          supabase
+            .from("depenses")
+            .select("*, biens(*)")
+            .gte("date_depense", start)
+            .lte("date_depense", end),
+        ]);
+
+        if (proprietairesRes.error) throw proprietairesRes.error;
+        if (biensRes.error) throw biensRes.error;
+        if (contratsRes.error) throw contratsRes.error;
+        if (paiementsRes.error) throw paiementsRes.error;
+        if (depensesRes.error) throw depensesRes.error;
+
+        return {
+          proprietaires: proprietairesRes.data || [],
+          biens: biensRes.data || [],
+          contrats: contratsRes.data || [],
+          paiements: paiementsRes.data || [],
+          depenses: depensesRes.data || [],
+        };
+      } catch (e: any) {
+        toast.error(`Erreur chargement rapports: ${e.message}`);
+        throw e;
+      }
     },
   });
 
   // Generate proprietaire report
   const handleGenerateProprietaireReport = async (propId: string) => {
     if (!reportData) return;
+
     const logoBase64 = await imageToBase64(logo);
-    const prop = reportData.proprietaires.find(p => p.id === propId);
+    const prop = reportData.proprietaires.find((p) => p.id === propId);
     if (!prop) return;
 
-    const propBiens = reportData.biens.filter(b => b.proprietaire_id === propId);
-    const propPaiements = reportData.paiements.filter(p => p.biens?.proprietaire_id === propId);
-    const propDepenses = reportData.depenses.filter(d => d.biens?.proprietaire_id === propId);
+    const propBiens = reportData.biens.filter((b) => b.proprietaire_id === propId);
 
-    const locatairesData = reportData.contrats
-      .filter(c => propBiens.some(b => b.id === c.bien_id))
-      .map(c => {
-        const bien = propBiens.find(b => b.id === c.bien_id);
-        const paiementsLoc = propPaiements.filter(p => p.locataire_id === c.locataire_id && p.type === "loyer");
-        const moisPayes = paiementsLoc.map(p => {
+    const contratsDuMois = reportData.contrats.filter((c) => {
+      const isPropBien = propBiens.some((b) => b.id === c.bien_id);
+      return isPropBien && isContratActifDansPeriode(c, monthStart, monthEnd);
+    });
+
+    const propPaiements = reportData.paiements.filter((p) => p.biens?.proprietaire_id === propId);
+    const propDepenses = reportData.depenses.filter((d) => d.biens?.proprietaire_id === propId);
+
+    const locatairesData = contratsDuMois.map((c) => {
+      const bien = propBiens.find((b) => b.id === c.bien_id);
+
+      const paiementsLoc = propPaiements.filter(
+        (p) => p.locataire_id === c.locataire_id && p.bien_id === c.bien_id && (p.type === "loyer" || p.type === "avance")
+      );
+
+      const montantPaye = paiementsLoc.reduce((s, p) => s + Number(p.montant), 0);
+      const loyerMensuel = Number(c.loyer_mensuel);
+      const arrieres = Math.max(0, loyerMensuel - montantPaye);
+
+      const moisPayes = paiementsLoc
+        .map((p) => {
           const d = p.mois_concerne ? new Date(p.mois_concerne) : new Date(p.date_paiement);
           return d.toLocaleDateString("fr-FR", { month: "short" });
-        });
-        const caution = propPaiements.filter(p => p.locataire_id === c.locataire_id && p.type === "caution").reduce((s, p) => s + Number(p.montant), 0);
-        
-        return {
-          nom: c.locataires?.nom || "N/A",
-          bien_nom: bien?.nom || "",
-          loyer: Number(c.loyer_mensuel),
-          loyers_payes: moisPayes,
-          montant_paye: paiementsLoc.reduce((s, p) => s + Number(p.montant), 0),
-          arrieres: 0,
-          caution_payee: caution
-        };
-      });
+        })
+        .filter(Boolean);
 
-    const totalLoyers = propPaiements.filter(p => p.type === "loyer" || p.type === "avance").reduce((s, p) => s + Number(p.montant), 0);
+      const caution = propPaiements
+        .filter((p) => p.locataire_id === c.locataire_id && p.bien_id === c.bien_id && p.type === "caution")
+        .reduce((s, p) => s + Number(p.montant), 0);
+
+      return {
+        nom: c.locataires?.nom || "N/A",
+        bien_nom: bien?.nom || "",
+        loyer: loyerMensuel,
+        loyers_payes: moisPayes,
+        montant_paye: montantPaye,
+        arrieres,
+        caution_payee: caution,
+      };
+    });
+
+    const totalLoyers = propPaiements
+      .filter((p) => p.type === "loyer" || p.type === "avance")
+      .reduce((s, p) => s + Number(p.montant), 0);
+
     const totalDepenses = propDepenses.reduce((s, d) => s + Number(d.montant), 0);
-    const avgCommission = propBiens.length > 0 ? propBiens.reduce((s, b) => s + Number(b.commission_pourcentage), 0) / propBiens.length : 10;
-    const commission = Math.round(totalLoyers * avgCommission / 100);
+    const avgCommission =
+      propBiens.length > 0
+        ? propBiens.reduce((s, b) => s + Number(b.commission_pourcentage), 0) / propBiens.length
+        : 10;
+
+    const commission = Math.round((totalLoyers * avgCommission) / 100);
+
+    const biensOccupes = new Set(contratsDuMois.map((c) => c.bien_id));
+    const nombreOccupes = biensOccupes.size;
+    const nombreLibres = Math.max(0, propBiens.length - nombreOccupes);
+
+    const totalArrieres = locatairesData.reduce((s, l) => s + Number(l.arrieres), 0);
 
     const data = {
       proprietaire: { id: prop.id, nom: prop.nom, telephone: prop.telephone, email: prop.email },
       biens: propBiens,
       locataires: locatairesData,
-      depenses: propDepenses.map(d => ({ description: d.description, montant: Number(d.montant), categorie: d.categorie, bien_nom: d.biens?.nom || "" })),
+      depenses: propDepenses.map((d) => ({
+        description: d.description,
+        montant: Number(d.montant),
+        categorie: d.categorie,
+        bien_nom: d.biens?.nom || "",
+      })),
       totals: {
         nombre_chambres: propBiens.length,
-        nombre_libres: propBiens.filter(b => b.statut === "disponible").length,
+        nombre_libres: nombreLibres,
         total_loyers: totalLoyers,
-        total_arrieres: 0,
-        total_cautions: propPaiements.filter(p => p.type === "caution").reduce((s, p) => s + Number(p.montant), 0),
+        total_arrieres: totalArrieres,
+        total_cautions: propPaiements.filter((p) => p.type === "caution").reduce((s, p) => s + Number(p.montant), 0),
         total_depenses: totalDepenses,
         commission,
-        somme_a_verser: totalLoyers - totalDepenses - commission
-      }
+        somme_a_verser: totalLoyers - totalDepenses - commission,
+      },
     };
 
     await generateProprietaireRapportPDF(data, selectedMonth, logoBase64);
@@ -166,17 +239,34 @@ const Rapports = () => {
     if (!reportData) return;
     const logoBase64 = await imageToBase64(logo);
 
-    const proprietairesData = reportData.proprietaires.map(prop => {
-      const propBiens = reportData.biens.filter(b => b.proprietaire_id === prop.id);
-      const propPaiements = reportData.paiements.filter(p => p.biens?.proprietaire_id === prop.id);
-      const propDepenses = reportData.depenses.filter(d => d.biens?.proprietaire_id === prop.id);
-      
-      const totalLoyers = propPaiements.filter(p => p.type === "loyer" || p.type === "avance").reduce((s, p) => s + Number(p.montant), 0);
-      const totalDep = propDepenses.reduce((s, d) => s + Number(d.montant), 0);
-      const avgComm = propBiens.length > 0 ? propBiens.reduce((s, b) => s + Number(b.commission_pourcentage), 0) / propBiens.length : 10;
-      const commission = Math.round(totalLoyers * avgComm / 100);
+    const contratsDuMois = reportData.contrats.filter((c) => isContratActifDansPeriode(c, monthStart, monthEnd));
+    const biensOccupes = new Set(contratsDuMois.map((c) => c.bien_id));
+    const locatairesUniques = new Set(contratsDuMois.map((c) => c.locataire_id));
 
-      return { nom: prop.nom, total_loyers: totalLoyers, total_depenses: totalDep, commission, somme_versee: totalLoyers - totalDep - commission };
+    const proprietairesData = reportData.proprietaires.map((prop) => {
+      const propBiens = reportData.biens.filter((b) => b.proprietaire_id === prop.id);
+      const propPaiements = reportData.paiements.filter((p) => p.biens?.proprietaire_id === prop.id);
+      const propDepenses = reportData.depenses.filter((d) => d.biens?.proprietaire_id === prop.id);
+
+      const totalLoyers = propPaiements
+        .filter((p) => p.type === "loyer" || p.type === "avance")
+        .reduce((s, p) => s + Number(p.montant), 0);
+
+      const totalDep = propDepenses.reduce((s, d) => s + Number(d.montant), 0);
+      const avgComm =
+        propBiens.length > 0
+          ? propBiens.reduce((s, b) => s + Number(b.commission_pourcentage), 0) / propBiens.length
+          : 10;
+
+      const commission = Math.round((totalLoyers * avgComm) / 100);
+
+      return {
+        nom: prop.nom,
+        total_loyers: totalLoyers,
+        total_depenses: totalDep,
+        commission,
+        somme_versee: totalLoyers - totalDep - commission,
+      };
     });
 
     const data = {
@@ -187,9 +277,9 @@ const Rapports = () => {
         total_commissions: proprietairesData.reduce((s, p) => s + p.commission, 0),
         benefice_net: proprietairesData.reduce((s, p) => s + p.commission, 0),
         nombre_biens: reportData.biens.length,
-        nombre_occupes: reportData.biens.filter(b => b.statut === "occupe").length,
-        nombre_locataires: reportData.contrats.length
-      }
+        nombre_occupes: biensOccupes.size,
+        nombre_locataires: locatairesUniques.size,
+      },
     };
 
     await generateAgenceRapportPDF(data, selectedMonth, logoBase64);
@@ -198,7 +288,7 @@ const Rapports = () => {
       total_revenus: data.totals.total_loyers,
       total_depenses: data.totals.total_depenses,
       benefice_net: data.totals.total_commissions,
-      donnees_json: data
+      donnees_json: data,
     });
     toast.success("Rapport agence généré et sauvegardé");
   };

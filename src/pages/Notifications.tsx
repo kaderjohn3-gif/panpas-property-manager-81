@@ -94,10 +94,13 @@ const Notifications = () => {
     return <Badge variant="outline">{type}</Badge>;
   };
 
-  const filteredNotifications = notifications?.filter((n) =>
-    n.locataires?.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    n.message.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredNotifications = (notifications ?? []).filter((n) => {
+    if (!normalizedQuery) return true;
+    const locataireNom = (n.locataires?.nom ?? "").toLowerCase();
+    const message = (n.message ?? "").toLowerCase();
+    return locataireNom.includes(normalizedQuery) || message.includes(normalizedQuery);
+  });
 
   // Calculate statistics
   const stats = {
