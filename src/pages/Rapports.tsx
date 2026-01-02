@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 const Rapports = () => {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [searchHistory, setSearchHistory] = useState("");
+  const [searchProprietaire, setSearchProprietaire] = useState("");
   const queryClient = useQueryClient();
 
   type CompleteReportData = {
@@ -325,10 +326,24 @@ const Rapports = () => {
                 {monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un propriétaire..."
+                value={searchProprietaire}
+                onChange={(e) => setSearchProprietaire(e.target.value)}
+                className="pl-9"
+              />
+            </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {proprietaires?.map(prop => (
+          {(() => {
+            const filteredProps = proprietaires?.filter(p =>
+              p.nom.toLowerCase().includes(searchProprietaire.toLowerCase())
+            ) || [];
+            return filteredProps.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredProps.map(prop => (
               <Card key={prop.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -345,7 +360,14 @@ const Rapports = () => {
                 </CardContent>
               </Card>
             ))}
-          </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <Users className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                <p>{searchProprietaire ? `Aucun propriétaire trouvé pour "${searchProprietaire}"` : "Aucun propriétaire enregistré"}</p>
+              </div>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="agence" className="space-y-4">
